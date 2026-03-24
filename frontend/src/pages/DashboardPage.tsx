@@ -132,7 +132,7 @@ export default function DashboardPage() {
                   }`}
                 >
                   <BookOpen size={18} />
-                  <span>{courseId}</span>
+                  <span>Marks</span>
                 </button>
               ))}
           </div>
