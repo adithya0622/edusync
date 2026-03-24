@@ -25,7 +25,6 @@ export default function RecommendationsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   
-  // Student recommendation form
   const [studentRec, setStudentRec] = useState<StudentRecommendation | null>(null)
   const [studentForm, setStudentForm] = useState({
     student_id: studentId || '',
@@ -80,8 +79,8 @@ export default function RecommendationsPage() {
       <h1>📊 AI Recommendations</h1>
       
       {error && <div className="error-alert">{error}</div>}
-        // Student Recommendation Form
-        <form onSubmit={handleGetStudentRecommendation} className="recommendation-form">
+
+      <form onSubmit={handleGetStudentRecommendation} className="recommendation-form">
           <h2>Get Student Recommendations</h2>
           
           <div className="form-group">
