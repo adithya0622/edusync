@@ -106,6 +106,10 @@ export default function DashboardPage() {
             <span className="user-name">{studentName}</span>
             <span className="user-id">Roll No: {studentId}</span>
           </div>
+          <button onClick={() => navigate('/recommendations')} className="btn-recommendations">
+            <TrendingUp size={20} />
+            AI Recommendations
+          </button>
           <button onClick={handleLogout} className="btn-logout">
             <LogOut size={20} />
             Logout
@@ -193,15 +197,25 @@ export default function DashboardPage() {
               <div className="recommendations-section">
                 <div className="recommendations-header">
                   <Target size={24} />
-                  <h3>Personalized Recommendations</h3>
+                  <h3>Recommended Strategies</h3>
                 </div>
                 <div className="recommendations-list">
-                  {currentResult.recommendations.map((rec, idx) => (
-                    <div key={idx} className="recommendation-item">
-                      <span className="rec-number">{idx + 1}</span>
-                      <span className="rec-text">{rec}</span>
+                  {currentResult.recommendations && currentResult.recommendations.length > 0 ? (
+                    currentResult.recommendations.map((rec, idx) => (
+                      <div key={idx} className="recommendation-item">
+                        <span className="rec-number">{idx + 1}</span>
+                        <span className="rec-text">{rec}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="no-recommendations">
+                      <p>📚 ML models are being trained...</p>
+                      <p>Strategies from Courses.xlsx will appear here once training is complete.</p>
+                      <p style={{ fontSize: '0.9em', marginTop: '10px', color: '#666' }}>
+                        Visit the "AI Recommendations" page for more details.
+                      </p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </>

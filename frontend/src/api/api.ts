@@ -1,11 +1,13 @@
 import axios from 'axios'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_KEY = import.meta.env.VITE_API_KEY || 'upgrade-ai-key-2026'
 
 const api = axios.create({
   baseURL: API_BASE,
   headers: {
     'Content-Type': 'application/json',
+    'x-api-key': API_KEY,
   }
 })
 
@@ -29,6 +31,21 @@ export const studentAPI = {
 
   getAllResults: () =>
     api.get('/api/students/results'),
+}
+
+export const recommendationAPI = {
+  getStudentRecommendation: (studentId: number, classId: string, courseId: string) =>
+    api.post('/api/recommendations/student', {
+      student_id: studentId,
+      class_id: classId,
+      course_id: courseId,
+    }),
+
+  getClassRecommendation: (classId: string, courseId: string) =>
+    api.post('/api/recommendations/class', {
+      class_id: classId,
+      course_id: courseId,
+    }),
 }
 
 export const systemAPI = {

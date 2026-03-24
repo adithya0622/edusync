@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
@@ -12,6 +12,10 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from skmultilearn.adapt import MLkNN
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add parent directory to path to import mlcode
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -38,6 +42,29 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STUDENTS_FILE = os.path.join(BASE_DIR, "Students.xlsx")
 COURSES_FILE = os.path.join(BASE_DIR, "Courses.xlsx")
 
+# API Key Configuration
+VALID_API_KEYS = [
+    "upgrade-ai-key-2026",  # Default key
+    os.getenv("API_KEY", "upgrade-ai-key-2026")  # Can override with env variable
+]
+
+# ==================== API Key Verification ====================
+def verify_api_key(x_api_key: str = Header(None)) -> str:
+    """Verify API key from header"""
+    if not x_api_key:
+        raise HTTPException(
+            status_code=403,
+            detail="API key missing. Include x-api-key header."
+        )
+    
+    if x_api_key not in VALID_API_KEYS:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid API key"
+        )
+    
+    return x_api_key
+
 # ==================== Models ====================
 class LoginRequest(BaseModel):
     email: str
@@ -58,6 +85,34 @@ class StudentResult(BaseModel):
     total_marks: int
     performance_level: str
     recommendations: List[str]
+
+# ==================== Recommendation Models ====================
+class StudentRecommendationRequest(BaseModel):
+    student_id: int
+    class_id: str
+    course_id: str
+
+class StudentRecommendationResponse(BaseModel):
+    success: bool
+    student_id: int
+    class_id: str
+    course_id: str
+    marks: Dict[str, float]
+    total_marks: float
+    recommendations: str
+    message: Optional[str] = None
+
+class ClassRecommendationRequest(BaseModel):
+    class_id: str
+    course_id: str
+
+class ClassRecommendationResponse(BaseModel):
+    success: bool
+    class_id: str
+    course_id: str
+    average_marks: Dict[str, float]
+    recommendations: str
+    message: Optional[str] = None
 
 # ==================== Utility Functions ====================
 
@@ -210,72 +265,83 @@ def get_course_strategies(course_id: str) -> Dict[str, str]:
         return {}
 
 def generate_ml_recommendations(student: dict, course_id: str) -> List[str]:
-    """Generate ML-based recommendations using trained model and course strategies"""
+    """
+    Generate strategy recommendations from Courses.xlsx based on LOW converted marks.
+    
+    For each assessment:
+    - Get the converted mark from student data
+    - Calculate if it's below threshold (75% of max converted marks)
+    - If below threshold, include the strategy for that assessment (word-for-word from Courses.xlsx)
+    
+    Returns: List of strategies (word-for-word from Courses.xlsx) for weak assessments only
+    """
     recommendations = []
     
     try:
-        # Get model and MLB files
-        model_file_path = os.path.join(BASE_DIR, f"{course_id}_dataset_model.joblib")
-        mlb_file_path = os.path.join(BASE_DIR, f"{course_id}_dataset_mlb.joblib")
-        
-        # Check if models exist
-        if not os.path.exists(model_file_path) or not os.path.exists(mlb_file_path):
-            return None  # Models not trained yet
-        
-        # Load model and MLB
-        loaded_model = joblib.load(model_file_path)
-        mlb = joblib.load(mlb_file_path)
-        
-        # Get assessments from Courses file
+        # Get Courses.xlsx data
         df_courses = pd.read_excel(COURSES_FILE, sheet_name=course_id, engine='openpyxl')
-        assessments = list(df_courses['Assessments'].values)
         
-        # Get course strategies mapping
-        strategy_map = get_course_strategies(course_id)
-        
-        # Prepare test data with converted marks
-        test_data = {}
-        for assessment in assessments:
-            converted_name = f"{assessment} Converted"
-            if converted_name in student and pd.notna(student[converted_name]):
-                test_data[assessment] = [float(student[converted_name])]
-            else:
-                test_data[assessment] = [0.0]
-        
-        if not test_data:
+        if 'Assessments' not in df_courses.columns:
             return None
         
-        test_df = pd.DataFrame(test_data)
+        # Find strategies column (handle various naming)
+        strategies_col = None
+        for col in df_courses.columns:
+            if 'strateg' in col.lower():
+                strategies_col = col
+                break
         
-        # Get predictions from model
-        predictions = loaded_model.predict(test_df)
-        if hasattr(predictions, 'toarray'):
-            predictions_nd = predictions.toarray()
-        else:
-            predictions_nd = np.array(predictions)
-
-        predicted_labels = mlb.inverse_transform(predictions_nd)
-
-        # Map predicted labels to strategies
-        for labels in predicted_labels:
-            if labels:
-                for label in labels:
-                    # For this ML approach we predict assessment names, not raw strategy text.
-                    if label in strategy_map:
-                        strategy = strategy_map[label]
-                        if strategy and pd.notna(strategy) and strategy.strip():
-                            recommendations.append(str(strategy).strip())
-
+        if not strategies_col:
+            return None
         
-        # Remove duplicates while preserving order
-        seen = set()
-        unique_recommendations = []
-        for rec in recommendations:
-            if rec not in seen:
-                seen.add(rec)
-                unique_recommendations.append(rec)
+        # Find converted marks column
+        converted_marks_col = None
+        for col in df_courses.columns:
+            if 'converted' in col.lower() and 'mark' in col.lower():
+                converted_marks_col = col
+                break
         
-        return unique_recommendations if unique_recommendations else None
+        if not converted_marks_col:
+            return None
+        
+        # Get assessments and their info
+        assessments = df_courses['Assessments'].values
+        strategies = df_courses[strategies_col].values
+        converted_marks_max = df_courses[converted_marks_col].values
+        
+        # Threshold: 75% of max converted marks for each assessment
+        threshold_percentage = 0.75
+        
+        # For each assessment, check if student's mark is below threshold
+        for idx, assessment in enumerate(assessments):
+            if pd.isna(assessment):
+                continue
+            
+            assessment_name = str(assessment).strip()
+            converted_col_name = f"{assessment_name} Converted"
+            
+            # Skip if assessment not in student data
+            if converted_col_name not in student:
+                continue
+            
+            student_mark = student[converted_col_name]
+            if pd.isna(student_mark):
+                continue
+            
+            student_mark = float(student_mark)
+            
+            # Get max mark for this assessment
+            if idx < len(converted_marks_max):
+                max_mark = float(converted_marks_max[idx])
+                threshold = threshold_percentage * max_mark
+                
+                # If student mark is below threshold (75%), add the strategy
+                if student_mark < threshold:
+                    strategy = str(strategies[idx]).strip() if idx < len(strategies) else None
+                    if strategy and strategy.lower() != 'nan':
+                        recommendations.append(strategy)
+        
+        return recommendations if recommendations else None
     
     except Exception as e:
         print(f"Error in generate_ml_recommendations: {e}")
@@ -283,66 +349,25 @@ def generate_ml_recommendations(student: dict, course_id: str) -> List[str]:
 
 def generate_recommendations(student: dict, total_marks: float, performance_level: str, course_id: str = None) -> List[str]:
     """
-    Generate personalized learning recommendations using ML model with course strategies
-    Falls back to rule-based if ML not available
+    Generate learning strategy recommendations from Courses.xlsx using ML model.
+    Returns actual teaching strategies mapped to areas needing improvement.
     """
     recommendations = []
     
     try:
-        # First, try ML-based recommendations if course_id provided
+        # Try ML-based recommendations using actual strategies from Courses.xlsx
         if course_id:
             ml_recommendations = generate_ml_recommendations(student, course_id)
             if ml_recommendations:
                 return ml_recommendations
         
-        # Fallback to rule-based recommendations based on performance
-        if performance_level == "Excellent":
-            recommendations = [
-                "Outstanding performance! Keep it up.",
-                "Help peers understand difficult concepts",
-                "Explore advanced topics",
-                "Maintain consistent study approach"
-            ]
-        elif performance_level == "Very Good":
-            recommendations = [
-                "Excellent progress, maintain momentum!",
-                "Review topics with slightly lower scores",
-                "Work on advanced problem sets",
-                "Consistent daily practice recommended"
-            ]
-        elif performance_level == "Good":
-            recommendations = [
-                "Good foundation built, aim higher!",
-                "Practice more challenging problems",
-                "Dedicate time to weaker topics",
-                "Form study groups with peers",
-                "Attend extra sessions for clarity"
-            ]
-        elif performance_level == "Satisfactory":
-            recommendations = [
-                "You can achieve better results",
-                "Focus on fundamentals",
-                "Increase daily study hours",
-                "Get instructor help on tough concepts",
-                "Use concept-mapping techniques",
-                "Practice basic problems first"
-            ]
-        else:
-            recommendations = [
-                "Significant improvement needed immediately",
-                "Master the basics first",
-                "Daily practice is essential",
-                "One-on-one tutoring recommended",
-                "Break concepts into smaller parts",
-                "Build strong foundation",
-                "Attend all revision sessions"
-            ]
-        
-        return recommendations
+        # If no ML models trained, return empty (strategies not yet available)
+        # This ensures only real strategies from Courses.xlsx are shown, not generic advice
+        return []
     
     except Exception as e:
         print(f"Error in generate_recommendations: {e}")
-        return ["Continue with consistent practice and seek help when needed"]
+        return []
 
 # ==================== API Endpoints ====================
 
@@ -686,6 +711,219 @@ async def get_models_status():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "service": "Upgrade API"}
+
+# ==================== ML Recommendation Endpoints ====================
+
+@app.post("/api/recommendations/student")
+async def get_student_recommendation(
+    request: StudentRecommendationRequest,
+    api_key: str = Header(None, alias="x-api-key")
+):
+    """
+    Get ML-based recommendations for a specific student in a course.
+    Calculates converted marks on-the-fly from raw marks and conversion factors.
+    
+    Requires API key in header: x-api-key
+    """
+    try:
+        # Verify API key
+        if not api_key:
+            raise HTTPException(status_code=403, detail="API key missing. Include x-api-key header.")
+        verify_api_key(api_key)
+        
+        # Read student data
+        df = pd.read_excel(STUDENTS_FILE, sheet_name=request.course_id)
+        df_courses = pd.read_excel(COURSES_FILE, sheet_name=request.course_id)
+        
+        # Find student
+        result = df[(df['Class'] == request.class_id) & (df['Student Id'] == request.student_id)]
+        
+        if result.empty:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Student {request.student_id} not found in class {request.class_id}"
+            )
+        
+        # Get assessments from Courses.xlsx
+        assessments_list = list(df_courses['Assessments'].values)
+        total_marks_list = list(df_courses['Total Marks'].values)
+        converted_marks_list = list(df_courses['Converted Marks'].values)
+        strategies_list = list(df_courses['Strategies'].values)
+        
+        # Calculate converted marks and prepare response
+        stu_marks = {}
+        recommendations = []
+        total_converted = 0.0
+        
+        for i, assessment in enumerate(assessments_list):
+            assessment_name = str(assessment).strip()
+            
+            # Skip if assessment not in student record
+            if assessment_name not in result.columns:
+                continue
+            
+            # Get raw mark
+            raw_mark = result[assessment_name].values[0]
+            if pd.isna(raw_mark):
+                raw_mark = 0.0
+            else:
+                raw_mark = float(raw_mark)
+            
+            # Get conversion factor
+            if i < len(total_marks_list) and i < len(converted_marks_list):
+                total_mark = float(total_marks_list[i])
+                converted_max = float(converted_marks_list[i])
+                
+                # Calculate converted mark: (raw / total) * converted_max
+                converted_mark = (raw_mark / total_mark * converted_max) if total_mark > 0 else 0.0
+                stu_marks[assessment_name] = round(converted_mark, 2)
+                total_converted += converted_mark
+                
+                # Check if below 60% threshold
+                threshold = 0.60 * converted_max
+                if converted_mark < threshold:
+                    # Add strategy if available
+                    if i < len(strategies_list):
+                        strategy = str(strategies_list[i]).strip()
+                        if strategy and strategy.lower() != 'nan':
+                            recommendations.append(strategy)
+        
+        # Format recommendations string
+        if recommendations:
+            # Remove duplicates while maintaining order
+            seen = set()
+            unique_recommendations = []
+            for r in recommendations:
+                if r not in seen:
+                    unique_recommendations.append(r)
+                    seen.add(r)
+            recommendations_str = "\n".join(unique_recommendations)
+        else:
+            recommendations_str = "No recommendations"
+        
+        return StudentRecommendationResponse(
+            success=True,
+            student_id=request.student_id,
+            class_id=request.class_id,
+            course_id=request.course_id,
+            marks=stu_marks,
+            total_marks=round(total_converted, 2),
+            recommendations=recommendations_str
+        )
+    
+    except HTTPException:
+        raise
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting student recommendations: {str(e)}")
+
+@app.post("/api/recommendations/class")
+async def get_class_recommendation(
+    request: ClassRecommendationRequest,
+    api_key: str = Header(None, alias="x-api-key")
+):
+    """
+    Get strategies for a class based on average performance.
+    Calculates converted mark averages on-the-fly from raw marks.
+    Shows strategies (word-for-word from Courses.xlsx) only for assessments 
+    where class average is below 75% of max mark.
+    
+    Requires API key in header: x-api-key
+    """
+    try:
+        # Verify API key
+        if not api_key:
+            raise HTTPException(status_code=403, detail="API key missing. Include x-api-key header.")
+        verify_api_key(api_key)
+        
+        # Read data
+        df_courses = pd.read_excel(COURSES_FILE, sheet_name=request.course_id)
+        df_students = pd.read_excel(STUDENTS_FILE, sheet_name=request.course_id)
+        
+        # Filter by class
+        df_class = df_students[df_students['Class'] == request.class_id]
+        
+        if df_class.empty:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No students found in class {request.class_id}"
+            )
+        
+        # Get assessments from Courses.xlsx
+        assessments_list = list(df_courses['Assessments'].values)
+        total_marks_list = list(df_courses['Total Marks'].values)
+        converted_marks_list = list(df_courses['Converted Marks'].values)
+        strategies_list = list(df_courses['Strategies'].values)
+        
+        # Calculate average converted marks for each assessment
+        average_marks = {}
+        recommended_strategies = []
+        threshold_percentage = 0.60
+        
+        for i, assessment in enumerate(assessments_list):
+            assessment_name = str(assessment).strip()
+            
+            # Skip if assessment not in student records
+            if assessment_name not in df_class.columns:
+                continue
+            
+            # Skip if assessment not in course data
+            if i >= len(total_marks_list) or i >= len(converted_marks_list):
+                continue
+            
+            # Get conversion parameters
+            total_mark = float(total_marks_list[i])
+            converted_max = float(converted_marks_list[i])
+            
+            # Calculate converted marks for all students in class
+            raw_marks = df_class[assessment_name].values
+            raw_marks = np.array([float(m) if pd.notna(m) else 0.0 for m in raw_marks])
+            
+            # Convert: (raw / total) * converted_max
+            if total_mark > 0:
+                converted_marks = (raw_marks / total_mark) * converted_max
+            else:
+                converted_marks = np.zeros_like(raw_marks)
+            
+            # Calculate class average
+            class_avg = float(np.mean(converted_marks))
+            average_marks[assessment_name] = round(class_avg, 2)
+            
+            # Check if below 75% threshold
+            threshold = threshold_percentage * converted_max
+            if class_avg < threshold:
+                # Add strategy if available
+                if i < len(strategies_list):
+                    strategy = str(strategies_list[i]).strip()
+                    if strategy and strategy.lower() != 'nan':
+                        recommended_strategies.append(strategy)
+        
+        # Remove duplicates while maintaining order
+        seen = set()
+        unique_strategies = []
+        for s in recommended_strategies:
+            if s not in seen:
+                unique_strategies.append(s)
+                seen.add(s)
+        
+        # Format recommendations string
+        recommendations_str = "\\n".join(unique_strategies) if unique_strategies else "No recommendations"
+        
+        return ClassRecommendationResponse(
+            success=True,
+            class_id=request.class_id,
+            course_id=request.course_id,
+            average_marks=average_marks,
+            recommendations=recommendations_str
+        )
+    
+    except HTTPException:
+        raise
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting class recommendations: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

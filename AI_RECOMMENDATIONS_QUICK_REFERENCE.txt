@@ -1,0 +1,266 @@
+================================================================================
+AI RECOMMENDATIONS SYSTEM - QUICK REFERENCE
+================================================================================
+
+API KEY: upgrade-ai-key-2026
+Header: x-api-key: upgrade-ai-key-2026
+
+================================================================================
+BACKEND ENDPOINTS
+================================================================================
+
+1. GET STUDENT RECOMMENDATIONS
+   Endpoint: POST /api/recommendations/student
+   Headers: x-api-key: upgrade-ai-key-2026
+            Content-Type: application/json
+   Body: {
+     "student_id": 22001,
+     "class_id": "CSE A",
+     "course_id": "19CSE301"
+   }
+
+2. GET CLASS RECOMMENDATIONS
+   Endpoint: POST /api/recommendations/class
+   Headers: x-api-key: upgrade-ai-key-2026
+            Content-Type: application/json
+   Body: {
+     "class_id": "CSE A",
+     "course_id": "19CSE301"
+   }
+
+3. TRAIN ALL ML MODELS
+   Endpoint: POST /api/train-models
+   Headers: x-api-key: upgrade-ai-key-2026
+
+4. CHECK MODEL STATUS
+   Endpoint: GET /api/models/status
+   Headers: x-api-key: upgrade-ai-key-2026
+
+================================================================================
+RUNNING THE APPLICATION
+================================================================================
+
+BACKEND:
+  cd backend
+  pip install -r requirements.txt
+  python -m uvicorn app:app --reload --host 0.0.0.0 --port 8000
+
+FRONTEND:
+  cd frontend
+  npm install
+  npm run dev
+
+================================================================================
+CURL COMMANDS FOR TESTING
+================================================================================
+
+GET STUDENT RECOMMENDATION:
+curl -X POST http://localhost:8000/api/recommendations/student \
+  -H "x-api-key: upgrade-ai-key-2026" \
+  -H "Content-Type: application/json" \
+  -d '{"student_id": 22001, "class_id": "CSE A", "course_id": "19CSE301"}'
+
+GET CLASS RECOMMENDATION:
+curl -X POST http://localhost:8000/api/recommendations/class \
+  -H "x-api-key: upgrade-ai-key-2026" \
+  -H "Content-Type: application/json" \
+  -d '{"class_id": "CSE A", "course_id": "19CSE301"}'
+
+TRAIN MODELS:
+curl -X POST http://localhost:8000/api/train-models \
+  -H "x-api-key: upgrade-ai-key-2026"
+
+CHECK MODEL STATUS:
+curl http://localhost:8000/api/models/status \
+  -H "x-api-key: upgrade-ai-key-2026"
+
+================================================================================
+ENVIRONMENT VARIABLES
+================================================================================
+
+FRONTEND (.env.local):
+  VITE_API_URL=http://localhost:8000
+  VITE_API_KEY=upgrade-ai-key-2026
+
+BACKEND (.env):
+  API_KEY=upgrade-ai-key-2026 (optional - overrides default)
+
+================================================================================
+FILE STRUCTURE
+================================================================================
+
+NEW FILES CREATED:
+  ✓ frontend/src/pages/RecommendationsPage.tsx
+  ✓ frontend/src/styles/RecommendationsPage.css
+  ✓ frontend/.env.local
+  ✓ AI_RECOMMENDATIONS_GUIDE.md
+  ✓ QUICK_START_RECOMMENDATIONS.md
+  ✓ AI_RECOMMENDATIONS_QUICK_REFERENCE.txt (this file)
+
+UPDATED FILES:
+  ✓ backend/app.py (added recommendation endpoints, models, API key auth)
+  ✓ frontend/src/api/api.ts (added recommendationAPI object)
+  ✓ frontend/src/App.tsx (added /recommendations route)
+  ✓ frontend/src/pages/DashboardPage.tsx (added nav button)
+  ✓ frontend/src/styles/DashboardPage.css (added button styles)
+
+================================================================================
+REQUEST/RESPONSE EXAMPLES
+================================================================================
+
+STUDENT RECOMMENDATION REQUEST:
+{
+  "student_id": 22001,
+  "class_id": "CSE A", 
+  "course_id": "19CSE301"
+}
+
+STUDENT RECOMMENDATION RESPONSE:
+{
+  "success": true,
+  "student_id": 22001,
+  "class_id": "CSE A",
+  "course_id": "19CSE301",
+  "marks": {
+    "Assessment1": 45.5,
+    "Assessment2": 38.0,
+    "Assessment3": 42.3
+  },
+  "total_marks": 125.8,
+  "recommendations": "Focus on fundamentals; Attend extra sessions..."
+}
+
+CLASS RECOMMENDATION REQUEST:
+{
+  "class_id": "CSE A",
+  "course_id": "19CSE301"
+}
+
+CLASS RECOMMENDATION RESPONSE:
+{
+  "success": true,
+  "class_id": "CSE A",
+  "course_id": "19CSE301",
+  "average_marks": {
+    "Assessment1": 42.1,
+    "Assessment2": 35.7,
+    "Assessment3": 40.2
+  },
+  "recommendations": "Focus on fundamentals; Implement peer learning..."
+}
+
+================================================================================
+DATA FILES REQUIRED
+================================================================================
+
+1. Students.xlsx
+   Sheets: 19CSE301, 19CSE302, etc.
+   Required columns: Student Id, Class, [Assessments], Total, Recommendation
+
+2. Courses.xlsx
+   Sheets: 19CSE301, 19CSE302, etc.
+   Required columns: Assessments, Strategies, Converted Marks, Total Marks
+
+3. ML Models (auto-generated):
+   - {course_id}_dataset_model.joblib
+   - {course_id}_dataset_mlb.joblib
+
+================================================================================
+ERROR CODES & SOLUTIONS
+================================================================================
+
+403 - API key missing/invalid
+  Fix: Add header: x-api-key: upgrade-ai-key-2026
+
+404 - Student/Class not found
+  Fix: Verify student_id, class_id, and course_id exist in data files
+
+400 - Missing model files
+  Fix: Train models using: POST /api/train-models
+
+500 - Server error
+  Fix: Check backend console for error details
+
+================================================================================
+FEATURES
+================================================================================
+
+✓ Student-level recommendations based on marks
+✓ Class-level recommendations based on averages
+✓ ML-powered prediction using trained models
+✓ API key authentication for security
+✓ Assessment-to-strategy mapping
+✓ Frontend UI for easy access
+✓ Responsive design (mobile & desktop)
+✓ Integration with existing mlcode.py
+✓ CORS enabled for cross-origin requests
+
+================================================================================
+SAMPLE DATA
+================================================================================
+
+SAMPLE STUDENT IDs:
+  22001, 22002, 22003, 22004, 22005... (See Students.xlsx)
+
+SAMPLE COURSE IDs:
+  19CSE301, 19CSE302
+
+SAMPLE CLASS IDs:
+  CSE A, CSE B, CSE C
+
+SAMPLE ASSESSMENT NAMES:
+  (Defined in Courses.xlsx Assessments column)
+
+================================================================================
+TESTING CHECKLIST
+================================================================================
+
+[ ] Backend running on port 8000
+[ ] Frontend running on port 5173 (or noted port)
+[ ] Can login with student email
+[ ] ML models trained (check /api/models/status)
+[ ] Student recommendations working
+[ ] Class recommendations working
+[ ] API key authentication working
+[ ] Frontend UI displaying properly
+[ ] Responsive design working on mobile
+
+================================================================================
+INTEGRATION WITH mlcode.py
+================================================================================
+
+The recommendation system uses these mlcode.py functions:
+  - mlcode.generate_data(course_id)      → Generates synthetic training data
+  - mlcode.training_data(course_id)      → Trains ML models
+  - mlcode.dataprep(course_id)           → Preprocesses student marks
+  - ML models (RandomForest + OneVsRest) → Makes predictions
+
+Models are loaded from:
+  - {course_id}_dataset_model.joblib     → Trained classifier
+  - {course_id}_dataset_mlb.joblib       → MultiLabelBinarizer
+
+================================================================================
+DOCUMENTATION FILES
+================================================================================
+
+AI_RECOMMENDATIONS_GUIDE.md
+  Complete guide with API docs, error handling, environment setup
+
+QUICK_START_RECOMMENDATIONS.md
+  Quick setup and testing guide for getting started quickly
+
+AI_RECOMMENDATIONS_QUICK_REFERENCE.txt
+  This file - quick reference for commands and endpoints
+
+================================================================================
+CONTACT & SUPPORT
+================================================================================
+
+For detailed documentation: See AI_RECOMMENDATIONS_GUIDE.md
+For quick setup: See QUICK_START_RECOMMENDATIONS.md  
+For command reference: This file
+
+Default test email: 22001@example.com
+Default API key: upgrade-ai-key-2026
+
+================================================================================
