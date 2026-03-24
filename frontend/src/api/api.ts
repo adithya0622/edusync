@@ -40,12 +40,6 @@ export const recommendationAPI = {
       class_id: classId,
       course_id: courseId,
     }),
-
-  getClassRecommendation: (classId: string, courseId: string) =>
-    api.post('/api/recommendations/class', {
-      class_id: classId,
-      course_id: courseId,
-    }),
 }
 
 export const systemAPI = {
