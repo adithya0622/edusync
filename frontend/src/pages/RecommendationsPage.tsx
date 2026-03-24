@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useStudent } from '../context/StudentContext'
-import { recommendationAPI, studentAPI } from '../api/api'
+import { recommendationAPI } from '../api/api'
 import '../styles/RecommendationsPage.css'
 
 interface StudentRecommendation {
@@ -13,15 +13,9 @@ interface StudentRecommendation {
   recommendations: string
 }
 
-interface Course {
-  id: string
-  name: string
-}
-
 export default function RecommendationsPage() {
   const { studentId } = useStudent()
   
-  const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   
@@ -29,31 +23,14 @@ export default function RecommendationsPage() {
   const [studentForm, setStudentForm] = useState({
     student_id: studentId || '',
     class_id: '',
-    course_id: '',
+    course_id: '19CSE301',
   })
   
-  // Load courses on mount
-  React.useEffect(() => {
-    loadCourses()
-  }, [])
 
-  const loadCourses = async () => {
-    try {
-      setLoading(true)
-      const response = await studentAPI.getCourses()
-      if (response.data.success) {
-        setCourses(response.data.courses)
-      }
-    } catch (err: any) {
-      setError('Failed to load courses: ' + (err.response?.data?.detail || err.message))
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleGetStudentRecommendation = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!studentForm.student_id || !studentForm.class_id || !studentForm.course_id) {
+    if (!studentForm.student_id || !studentForm.class_id) {
       setError('Please fill in all fields')
       return
     }
@@ -105,21 +82,7 @@ export default function RecommendationsPage() {
             />
           </div>
 
-          <div className="form-group">
-            <label>Course ID:</label>
-            <select
-              value={studentForm.course_id}
-              onChange={(e) => setStudentForm({ ...studentForm, course_id: e.target.value })}
-              required
-            >
-              <option value="">Select a course</option>
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.name} ({course.id})
-                </option>
-              ))}
-            </select>
-          </div>
+
 
           <button type="submit" disabled={loading} className="submit-btn">
             {loading ? 'Loading...' : 'Get Recommendations'}
