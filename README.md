@@ -7,4 +7,3 @@ The critical challenge is to identify the effective methods to enhance student l
 
 Check out the .ipynb file to learn how the project works.
 
-https://github.com/Nehal-Khan-29/Upgrade/blob/main/Justification%20Code%20New.ipynb
