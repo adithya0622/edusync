@@ -257,7 +257,7 @@ export default function RecommendationsPage() {
               <h4>💡 Recommended Strategies from Course:</h4>
               <div className="recommendations-text">
                 {studentRec.recommendations ? (
-                  studentRec.recommendations.split(';').filter(s => s.trim()).map((recommendation, idx) => (
+                  studentRec.recommendations.split('\n').filter(s => s.trim()).map((recommendation, idx) => (
                     <div key={idx} className="strategy-item">
                       <span className="strategy-number">{idx + 1}.</span>
                       <span>{recommendation.trim()}</span>
@@ -298,7 +298,7 @@ export default function RecommendationsPage() {
               <h4>💡 Recommended Strategies for the Class:</h4>
               <div className="recommendations-text">
                 {classRec.recommendations ? (
-                  classRec.recommendations.split(';').filter(s => s.trim()).map((strategy, idx) => (
+                  classRec.recommendations.split('\n').filter(s => s.trim()).map((strategy, idx) => (
                     <div key={idx} className="strategy-item">
                       <span className="strategy-number">{idx + 1}.</span>
                       <span>{strategy.trim()}</span>
