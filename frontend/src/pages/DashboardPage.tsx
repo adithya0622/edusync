@@ -145,7 +145,7 @@ export default function DashboardPage() {
               {/* Performance Card */}
               <div className="performance-card">
                 <div className="performance-header">
-                  <h2>{currentResult.course}</h2>
+                  <h2>Marks</h2>
                   <span
                     className={`performance-badge ${currentResult.performance_level
                       .toLowerCase()
