@@ -10,22 +10,12 @@ import sys
 import joblib
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
-import hashlib
 
 # Load environment variables
 load_dotenv()
 
 # Add parent directory to path to import mlcode
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Import security utilities
-from security_utils import (
-    get_or_create_encryption_key,
-    read_encrypted_excel,
-    verify_hash,
-    generate_verification_hash,
-    create_students_vault
-)
 
 # Import ML code functions
 try:
@@ -47,11 +37,7 @@ app.add_middleware(
 # Constants
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STUDENTS_FILE = os.path.join(BASE_DIR, "Students.xlsx")
-STUDENTS_VAULT = os.path.join(BASE_DIR, "Students.vault")
 COURSES_FILE = os.path.join(BASE_DIR, "Courses.xlsx")
-
-# Initialize encryption key
-encryption_key = get_or_create_encryption_key()
 
 # API Key Configuration
 VALID_API_KEYS = [
@@ -79,7 +65,7 @@ def verify_api_key(x_api_key: str = Header(None)) -> str:
 # ==================== Models ====================
 class LoginRequest(BaseModel):
     email: str
-    verification_hash: Optional[str] = None
+    password: Optional[str] = None
 
 class LoginResponse(BaseModel):
     success: bool
@@ -116,20 +102,12 @@ class StudentRecommendationResponse(BaseModel):
 # ==================== Utility Functions ====================
 
 def read_students_excel():
-    """Read the Students Excel file (encrypted or plaintext)"""
+    """Read the Students Excel file"""
     try:
-        # Try to read from encrypted vault first
-        if os.path.exists(STUDENTS_VAULT):
-            print("✓ Reading from encrypted vault (Students.vault)")
-            df = read_encrypted_excel(STUDENTS_VAULT, key=encryption_key)
-            return df
-        # Fall back to plaintext if vault doesn't exist
-        elif os.path.exists(STUDENTS_FILE):
-            print("⚠️  Reading from plaintext (Students.xlsx) - Consider encrypting to Students.vault!")
-            df = pd.read_excel(STUDENTS_FILE)
-            return df
-        else:
-            raise FileNotFoundError(f"Neither vault nor file found at {STUDENTS_VAULT} or {STUDENTS_FILE}")
+        if not os.path.exists(STUDENTS_FILE):
+            raise FileNotFoundError(f"Students file not found at {STUDENTS_FILE}")
+        df = pd.read_excel(STUDENTS_FILE)
+        return df
     except Exception as e:
         raise Exception(f"Error reading Students file: {str(e)}")
 
@@ -416,13 +394,8 @@ async def root():
 @app.post("/api/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
     """
-    Login endpoint with Secure Hashing (Layer 2)
-    
+    Login endpoint - validates student using roll number from email
     Expected email format: rollno@gmail.com
-    Expected verification_hash: SHA256(roll_no + salt)
-    
-    To get your verification hash for testing:
-    - Call GET /api/student/{roll_no}/verification-hash
     """
     try:
         email = request.email.strip().lower()
@@ -433,28 +406,10 @@ async def login(request: LoginRequest):
 
         # Extract roll number from email
         roll_no = extract_roll_no_from_email(email)
-        print(f"Login attempt - Roll No: {roll_no}")
+        print(f"Incoming roll_no: {roll_no}")  # Log roll_no to console
 
         if not roll_no:
             return JSONResponse(status_code=400, content={"error": "Invalid email format"})
-
-        # LAYER 2: Verify hash instead of password
-        if not request.verification_hash:
-            return JSONResponse(
-                status_code=400, 
-                content={"error": "verification_hash is required. Get it from /api/student/{roll_no}/verification-hash"}
-            )
-
-        # Verify hash
-        is_hash_valid = verify_hash(roll_no, request.verification_hash)
-        if not is_hash_valid:
-            print(f"❌ Invalid verification hash for roll_no: {roll_no}")
-            return JSONResponse(
-                status_code=401,
-                content={"error": "Invalid verification hash"}
-            )
-
-        print(f"✓ Hash verified for roll_no: {roll_no}")
 
         # Validate student exists
         validation = validate_student(roll_no)
@@ -462,7 +417,7 @@ async def login(request: LoginRequest):
         if not validation["success"]:
             return JSONResponse(
                 status_code=401,
-                content={"error": f"User with Roll No {roll_no} not found"}
+                content={"error": f"User with Roll No {roll_no} not found in top 5"}
             )
 
         student_data = validation["data"]
@@ -477,36 +432,6 @@ async def login(request: LoginRequest):
 
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"error": e.detail})
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-@app.get("/api/student/{roll_no}/verification-hash")
-async def get_verification_hash(roll_no: str):
-    """
-    Get the verification hash for a student (for testing/setup).
-    
-    Use this hash in the verification_hash field when logging in.
-    Do NOT share this publicly - it contains sensitive information.
-    """
-    try:
-        # Verify student exists
-        validation = validate_student(roll_no)
-        if not validation["success"]:
-            return JSONResponse(
-                status_code=404,
-                content={"error": f"Student with Roll No {roll_no} not found"}
-            )
-
-        # Generate verification hash
-        hash_data = generate_verification_hash(roll_no)
-        
-        return {
-            "success": True,
-            "roll_no": roll_no,
-            "verification_hash": hash_data["hash"],
-            "salt": hash_data["salt"],
-            "message": "Use this hash in the verification_hash field when logging in"
-        }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
