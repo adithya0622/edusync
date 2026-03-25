@@ -119,6 +119,25 @@
   transform: translateY(-2px);
 }
 
+.btn-report {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-report:hover {
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+  transform: translateY(-2px);
+}
+
 /* Main Content */
 .dashboard-content {
   display: flex;

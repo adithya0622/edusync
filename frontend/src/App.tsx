@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import RecommendationsPage from './pages/RecommendationsPage'
+import ReportPage from './pages/ReportPage'
 import './App.css'
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/recommendations" element={<RecommendationsPage />} />
+        <Route path="/report" element={<ReportPage />} />
       </Routes>
     </Router>
   )
