@@ -8,10 +8,6 @@ from typing import Optional, List, Dict
 import json
 import sys
 import joblib
-from sklearn.preprocessing import MultiLabelBinarizer
-from skmultilearn.adapt import MLkNN
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 from dotenv import load_dotenv
 
 # Load environment variables
