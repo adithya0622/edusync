@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useStudent } from '../context/StudentContext'
 import { recommendationAPI } from '../api/api'
+import { ArrowLeft } from 'lucide-react'
 import '../styles/RecommendationsPage.css'
 
 interface StudentRecommendation {
@@ -15,6 +17,7 @@ interface StudentRecommendation {
 
 export default function RecommendationsPage() {
   const { studentId } = useStudent()
+  const navigate = useNavigate()
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -53,7 +56,13 @@ export default function RecommendationsPage() {
 
   return (
     <div className="recommendations-container">
-      <h1>📊 AI Recommendations</h1>
+      <div className="recommendations-header">
+        <button onClick={() => navigate('/dashboard')} className="btn-back">
+          <ArrowLeft size={20} />
+          Back to Marks
+        </button>
+        <h1>📊 AI Recommendations</h1>
+      </div>
       
       {error && <div className="error-alert">{error}</div>}
 
