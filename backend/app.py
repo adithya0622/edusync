@@ -9,6 +9,7 @@ import json
 import sys
 import joblib
 from dotenv import load_dotenv
+from fastapi.responses import JSONResponse
 
 # Load environment variables
 load_dotenv()
@@ -24,10 +25,10 @@ except ImportError:
 
 app = FastAPI(title="Upgrade - Student Learning Recommendation System")
 
-# Enable CORS
+# Update CORSMiddleware to allow all origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "*"],
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -122,11 +123,12 @@ def validate_student(roll_no: str) -> dict:
     """Validate if student exists in Students Excel file"""
     try:
         df = read_students_excel()
-        
-        # Check if roll_no exists in the dataframe
-        # Assuming 'Roll No' or similar column exists
+
+        # Sort and get top 5 students
+        df = df.sort_values(by="total_marks", ascending=False).head(5)
+
+        # Check if roll_no exists in the top 5
         student_row = None
-        
         for col in df.columns:
             if 'roll' in col.lower() or 'id' in col.lower():
                 mask = df[col].astype(str).str.contains(str(roll_no), case=False, na=False)
@@ -136,12 +138,9 @@ def validate_student(roll_no: str) -> dict:
                         "success": True,
                         "data": student_row.iloc[0].to_dict()
                     }
-        
-        # If no matching column found, try first column
-        if not student_row is None and not student_row.empty:
-            return {"success": True, "data": student_row.iloc[0].to_dict()}
-        
-        return {"success": False, "data": None}
+
+        return {"success": False, "data": None, "error": "User not in top 5"}
+
     except Exception as e:
         return {"success": False, "data": None, "error": str(e)}
 
@@ -368,27 +367,29 @@ async def login(request: LoginRequest):
     """
     try:
         email = request.email.strip().lower()
-        
+
         # Validate email format
         if "@" not in email:
-            raise HTTPException(status_code=400, detail="Invalid email format")
-        
+            return JSONResponse(status_code=400, content={"error": "Invalid email format"})
+
         # Extract roll number from email
         roll_no = extract_roll_no_from_email(email)
+        print(f"Incoming roll_no: {roll_no}")  # Log roll_no to console
+
         if not roll_no:
-            raise HTTPException(status_code=400, detail="Invalid email format")
-        
+            return JSONResponse(status_code=400, content={"error": "Invalid email format"})
+
         # Validate student exists
         validation = validate_student(roll_no)
-        
+
         if not validation["success"]:
-            raise HTTPException(
+            return JSONResponse(
                 status_code=401,
-                detail=f"Student with Roll No {roll_no} not found"
+                content={"error": f"User with Roll No {roll_no} not found in top 5"}
             )
-        
+
         student_data = validation["data"]
-        
+
         return LoginResponse(
             success=True,
             message="Login successful",
@@ -396,11 +397,11 @@ async def login(request: LoginRequest):
             student_name=student_data.get("Student Name", "Student"),
             token=f"token_{roll_no}_{email}"
         )
-    
-    except HTTPException:
-        raise
+
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"error": e.detail})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.get("/api/student/{roll_no}/results")
 async def get_student_results_endpoint(roll_no: str):
