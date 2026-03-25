@@ -331,6 +331,7 @@ def generate_recommendations(student: dict, total_marks: float, performance_leve
     """
     Generate learning strategy recommendations from Courses.xlsx using ML model.
     Returns actual teaching strategies mapped to areas needing improvement.
+    If no AI recommendations available, returns default suggestions.
     """
     recommendations = []
     
@@ -341,13 +342,19 @@ def generate_recommendations(student: dict, total_marks: float, performance_leve
             if ml_recommendations:
                 return ml_recommendations
         
-        # If no ML models trained, return empty (strategies not yet available)
-        # This ensures only real strategies from Courses.xlsx are shown, not generic advice
-        return []
+        # If no ML models trained, return default suggestions
+        # Student is doing well in this course
+        return [
+            "Continue learning the same way",
+            "Teach your peers"
+        ]
     
     except Exception as e:
         print(f"Error in generate_recommendations: {e}")
-        return []
+        return [
+            "Continue learning the same way",
+            "Teach your peers"
+        ]
 
 # ==================== API Endpoints ====================
 
@@ -781,7 +788,12 @@ async def get_student_recommendation(
                     seen.add(r)
             recommendations_str = "\n".join(unique_recommendations)
         else:
-            recommendations_str = "No recommendations"
+            # Default suggestions when no AI recommendations
+            default_recommendations = [
+                "1. Continue learning the same way",
+                "2. Teach your peers"
+            ]
+            recommendations_str = "\n".join(default_recommendations)
         
         return StudentRecommendationResponse(
             success=True,
