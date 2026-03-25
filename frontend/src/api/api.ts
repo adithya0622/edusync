@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8082'
 const API_KEY = import.meta.env.VITE_API_KEY || 'upgrade-ai-key-2026'
 
 const api = axios.create({
@@ -45,6 +45,38 @@ export const recommendationAPI = {
 export const systemAPI = {
   health: () =>
     api.get('/api/health'),
+}
+
+export const securityAPI = {
+  threatScan: (email: string) =>
+    api.post('/api/security/threat-scan', { email }),
+
+  threatAssessment: (email: string, studentId?: string) =>
+    api.post('/api/security/threat-assessment', { email, student_id: studentId }),
+
+  encryptNotes: (studentId: string, subject: string, notes: string) =>
+    api.post('/api/security/encrypt-notes', { student_id: studentId, subject, notes }),
+
+  decryptNotes: (studentId: string, subject: string) =>
+    api.post('/api/security/decrypt-notes', { student_id: studentId, subject }),
+
+  threatDashboard: () =>
+    api.get('/api/security/threat-dashboard'),
+
+  kyberHandshake: (clientPublicKey: string) =>
+    api.post('/api/security/pqc/kyber-handshake', { client_public_key: clientPublicKey }),
+
+  checkPasswordBreach: (passwordHash: string) =>
+    api.get(`/api/security/pwned-password/${passwordHash}`),
+}
+
+export const chatAPI = {
+  sendMessage: (message: string, studentId?: string, conversationHistory?: { role: string; content: string }[]) =>
+    api.post('/api/chat', {
+      message,
+      student_id: studentId || 'guest',
+      conversation_history: conversationHistory || [],
+    }),
 }
 
 export default api

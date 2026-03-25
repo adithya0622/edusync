@@ -3,6 +3,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import RecommendationsPage from './pages/RecommendationsPage'
 import ReportPage from './pages/ReportPage'
+import CounselorPage from './pages/CounselorPage'
 import './App.css'
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/recommendations" element={<RecommendationsPage />} />
         <Route path="/report" element={<ReportPage />} />
+        <Route path="/counselor" element={<CounselorPage />} />
       </Routes>
     </Router>
   )

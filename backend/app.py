@@ -11,6 +11,7 @@ import joblib
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
 import requests
+from cryptography.fernet import Fernet
 
 # Load environment variables
 load_dotenv()
@@ -103,10 +104,13 @@ class StudentRecommendationResponse(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     student_id: Optional[str] = "guest"
+    conversation_history: Optional[List[Dict[str, str]]] = []
 
 class ChatResponse(BaseModel):
     response: str
     detected_emotion: Optional[str] = None
+    encouragement: Optional[str] = None
+    suggested_actions: Optional[List[str]] = None
 
 # ==================== Utility Functions ====================
 
@@ -858,88 +862,374 @@ async def get_student_recommendation(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting student recommendations: {str(e)}")
 
-# ==================== Chat Bot Endpoints ====================
+# ==================== AI Counselor Chat Bot ====================
+
+# Progress tracking for students
+student_chat_sessions: Dict[str, Dict] = {}
+
+def get_student_context(student_id: str) -> Dict:
+    """Fetch student academic data to personalize counselor responses"""
+    context = {"has_data": False}
+    try:
+        results = get_student_results(student_id) if student_id != "guest" else None
+        if results:
+            context["has_data"] = True
+            context["courses"] = {}
+            for course_id, data in results.items():
+                context["courses"][course_id] = {
+                    "performance_level": data.get("performance_level", "Unknown"),
+                    "total_marks": data.get("total_marks", 0),
+                    "recommendations": data.get("recommendations", [])
+                }
+            # Overall performance
+            total = sum(c["total_marks"] for c in context["courses"].values())
+            num_courses = len(context["courses"])
+            context["avg_marks"] = round(total / num_courses, 1) if num_courses > 0 else 0
+    except Exception:
+        pass
+    return context
+
 def detect_emotional_state(message: str) -> Optional[str]:
-    """
-    Detect if student is expressing emotional distress
-    Returns: emotion type or None
-    """
+    """Detect student's emotional state from message"""
     msg_lower = message.lower()
     
-    if any(w in msg_lower for w in ['sad', 'depressed', 'lonely', 'unhappy', 'struggle', 'failure', 'tired', 'lost']):
+    sadness_words = ['sad', 'depressed', 'lonely', 'unhappy', 'cry', 'crying', 'hopeless', 'worthless', 'failure', 'failed', 'lost', 'empty', 'miserable']
+    stress_words = ['stress', 'anxiety', 'anxious', 'pressure', 'overwhelm', 'overwhelmed', 'panic', 'burnout', 'exhausted', 'cant sleep', "can't sleep", 'insomnia', 'too much']
+    frustration_words = ['frustrated', 'angry', 'annoyed', 'irritated', 'upset', 'hate', 'stupid', 'dumb', 'useless', 'pointless', 'unfair']
+    fear_words = ['scared', 'afraid', 'fear', 'terrified', 'nervous', 'worried', 'worry', 'dreading']
+    loneliness_words = ['alone', 'no friends', 'nobody', 'isolated', 'left out', 'ignored', 'invisible']
+    motivation_words = ['unmotivated', 'lazy', 'procrastinat', 'dont care', "don't care", 'give up', 'quit', 'whats the point', "what's the point", 'no motivation', 'cant focus', "can't focus"]
+    positive_words = ['happy', 'excited', 'proud', 'achieved', 'did it', 'passed', 'improved', 'better', 'great', 'awesome', 'confident', 'good news']
+    
+    if any(w in msg_lower for w in positive_words):
+        return 'positive'
+    if any(w in msg_lower for w in sadness_words):
         return 'sad'
-    elif any(w in msg_lower for w in ['stress', 'anxiety', 'anxious', 'pressure', 'overwhelm', 'panic']):
+    if any(w in msg_lower for w in stress_words):
         return 'stressed'
-    elif any(w in msg_lower for w in ['frustrated', 'angry', 'annoyed', 'irritated', 'upset']):
+    if any(w in msg_lower for w in frustration_words):
         return 'frustrated'
+    if any(w in msg_lower for w in fear_words):
+        return 'fearful'
+    if any(w in msg_lower for w in loneliness_words):
+        return 'lonely'
+    if any(w in msg_lower for w in motivation_words):
+        return 'unmotivated'
     
     return None
 
-def generate_supportive_response(message: str, emotion: Optional[str]) -> str:
-    """
-    Generate supportive and contextual responses
-    """
+def get_encouragement(student_id: str, emotion: Optional[str]) -> str:
+    """Generate progress-based encouragement"""
+    session = student_chat_sessions.get(student_id, {})
+    msg_count = session.get("message_count", 0)
+    
+    encouragements = [
+        "Remember: every question you ask is a step forward.",
+        "You're building momentum — keep going!",
+        "The fact that you're here shows you care about your growth.",
+        "Small steps lead to big achievements. You're on the right track.",
+        "Progress isn't always visible, but it's always happening when you put in effort.",
+        "You've already taken the hardest step — asking for help.",
+        "Each challenge you face makes you stronger. You've got this!",
+        "Your dedication to improvement is already a sign of success.",
+    ]
+    
+    if emotion == 'positive':
+        return "Keep riding this positive wave! Your hard work is paying off!"
+    
+    import random
+    return random.choice(encouragements)
+
+def generate_counselor_response(message: str, emotion: Optional[str], student_context: Dict, student_id: str) -> tuple:
+    """Generate comprehensive counselor response with academic + emotional support"""
+    import random
     msg_lower = message.lower()
     
-    # Emotional support takes priority
+    response_parts = []
+    suggested_actions = []
+    
+    # --- EMOTIONAL SUPPORT (Priority) ---
     if emotion:
         emotional_responses = {
             'sad': [
-                "I understand you're struggling. Remember, this feeling is temporary and you can overcome it. Let's focus on what we can improve.",
-                "It's okay to feel down. Many successful students have been there. What specific subject can I help you with?"
+                "I hear you, and it's completely okay to feel this way. Everyone goes through tough times — what matters is that you're reaching out. Let's work through this together.",
+                "Feeling down is a natural part of growth. You're not alone in this, and things will get better. Tell me more about what's going on — I'm here to listen.",
+                "It takes real courage to share how you feel. Let's figure out what's weighing on you and find a path forward, one step at a time."
             ],
             'stressed': [
-                "Stress is normal, but you're not alone. Let's break your work into smaller, manageable chunks. What's the priority?",
-                "Take a breath! Let's tackle one thing at a time. What would help you most right now?"
+                "I understand the pressure feels overwhelming right now. Let's take this one piece at a time. You don't have to tackle everything at once.",
+                "Stress means you care about doing well — that's a strength. But let's find a way to manage it so it works FOR you, not against you.",
+                "Take a deep breath. You've handled challenges before, and you'll handle this one too. Let's break things down into smaller, doable steps."
             ],
             'frustrated': [
-                "Frustration means you care about your studies. Let me help you find a new approach. What are you working on?"
+                "Frustration actually means you're pushing your limits — that's how growth happens. Let's find a different angle to approach this.",
+                "I get it — it's annoying when things don't click. But every expert was once a frustrated beginner. Let's try a fresh approach together.",
+                "Your frustration shows you have high standards for yourself. That's admirable. Let me help you find a way past this block."
+            ],
+            'fearful': [
+                "It's okay to feel nervous — that means you're stepping outside your comfort zone, which is where growth happens.",
+                "Fear is a natural response, but don't let it hold you back. You're more prepared than you think. Let's talk about what's worrying you.",
+                "Many successful people felt exactly the way you do before their breakthrough. Let's channel this feeling into preparation."
+            ],
+            'lonely': [
+                "I'm glad you reached out — you're not as alone as you feel right now. Connecting with study groups or classmates can make a huge difference.",
+                "Feeling isolated is tough, but remember — this is a shared experience for many students. You belong here, and your voice matters.",
+                "Let's find ways to connect you with peers. Sometimes just one good study buddy can change everything."
+            ],
+            'unmotivated': [
+                "Motivation comes and goes — that's normal. What matters is showing up even when it's hard. And you showed up today by reaching out!",
+                "Let's find what excites you about learning. When we connect your studies to something you actually care about, motivation follows naturally.",
+                "Don't wait for motivation to start — start, and motivation will catch up. Let's pick one small thing you can do right now."
+            ],
+            'positive': [
+                "That's amazing! You should be really proud of yourself. This positive momentum will carry you far!",
+                "YES! This is what progress looks like! Your hard work is clearly paying off — keep building on this!",
+                "Fantastic! Remember this feeling — it's proof that your efforts are worthwhile. What's next on your goals list?"
             ]
         }
-        import random
-        return random.choice(emotional_responses.get(emotion, ["I'm here to help you. What's the topic?"]))
+        
+        response_parts.append(random.choice(emotional_responses.get(emotion, ["I'm here for you. Tell me what's on your mind."])))
+        
+        if emotion in ['sad', 'stressed', 'frustrated', 'fearful']:
+            suggested_actions.append("Try a 5-minute breathing exercise to reset your mind")
+            suggested_actions.append("Write down 3 things you've accomplished this week")
+        if emotion == 'lonely':
+            suggested_actions.append("Join or form a study group for your courses")
+            suggested_actions.append("Visit your professor during office hours")
+        if emotion == 'unmotivated':
+            suggested_actions.append("Set a tiny goal for today — just 15 minutes of focused study")
+            suggested_actions.append("Reward yourself after each study session")
     
-    # Context-based responses
-    if any(w in msg_lower for w in ['math', 'calculus', 'algebra', 'geometry', 'equation']):
-        return "I can help with math! What specific problem or concept are you struggling with? Share an example!"
+    # --- ACADEMIC SUPPORT ---
+    academic_handled = False
     
-    if any(w in msg_lower for w in ['code', 'program', 'python', 'java', 'javascript', 'debug']):
-        return "Great! I can help with programming. What language and what's the issue you're facing?"
+    if any(w in msg_lower for w in ['marks', 'score', 'grade', 'result', 'performance', 'how am i doing', 'how did i do']):
+        if student_context.get("has_data"):
+            context_info = []
+            for course_id, cdata in student_context["courses"].items():
+                context_info.append(f"**{course_id}**: {cdata['performance_level']} (Total: {cdata['total_marks']})")
+            response_parts.append(f"Here's your academic snapshot:\n" + "\n".join(context_info))
+            response_parts.append(f"\nYour average across courses: **{student_context['avg_marks']}** marks. {'Great job!' if student_context['avg_marks'] > 150 else 'There is room for improvement — let me help.'}")
+            suggested_actions.append("Check your Dashboard for detailed marks breakdown")
+            suggested_actions.append("Visit AI Recommendations for personalized strategies")
+        else:
+            response_parts.append("I'd love to check your performance! Please log in with your student email so I can access your academic data.")
+        academic_handled = True
     
-    if any(w in msg_lower for w in ['exam', 'test', 'quiz', 'prepare', 'revision']):
-        return "Exam prep is important! What subjects are you preparing for? Let's make a study plan."
+    if any(w in msg_lower for w in ['study', 'study plan', 'schedule', 'timetable', 'how to study', 'study tips', 'study method']):
+        response_parts.append("Here's a proven study approach that works for most students:\n\n"
+            "1. **Pomodoro Technique**: 25 min focused study → 5 min break → repeat\n"
+            "2. **Active Recall**: Test yourself instead of re-reading\n"
+            "3. **Spaced Repetition**: Review material at increasing intervals\n"
+            "4. **Teach Someone**: Explaining concepts solidifies your understanding\n"
+            "5. **Start with the hardest topic** when your energy is highest")
+        suggested_actions.append("Create a weekly study schedule")
+        suggested_actions.append("Try the Pomodoro technique in your next study session")
+        academic_handled = True
     
-    if any(w in msg_lower for w in ['understand', 'explain', 'confused', 'difficult', 'hard']):
-        return "No problem! Let me explain it simply. What topic would you like me to break down?"
+    if any(w in msg_lower for w in ['math', 'calculus', 'algebra', 'geometry', 'equation', 'formula', 'number']):
+        response_parts.append("Math can feel daunting, but it's all about building understanding step by step. What specific topic or problem are you working on? I can help break it down!")
+        suggested_actions.append("Practice 3-5 problems daily to build confidence")
+        suggested_actions.append("Watch visual explanations on YouTube/Khan Academy")
+        academic_handled = True
     
-    if any(w in msg_lower for w in ['motivation', 'continue', 'give up', 'quit']):
-        return "Don't give up! You're capable of more than you think. What specific challenge can I help you overcome?"
+    if any(w in msg_lower for w in ['code', 'program', 'python', 'java', 'javascript', 'debug', 'error', 'syntax', 'compile']):
+        response_parts.append("Programming challenges are where you learn the most! What language are you working with, and what's the specific issue? Share the problem and I'll help you think through it.")
+        suggested_actions.append("Break the problem into smaller functions")
+        suggested_actions.append("Use print/console.log statements to trace your logic")
+        academic_handled = True
     
-    # Default response
-    return "I'm here to help you academically and emotionally. What would you like to discuss - is it a specific subject or how you're feeling?"
+    if any(w in msg_lower for w in ['exam', 'test', 'quiz', 'prepare', 'revision', 'midterm', 'final']):
+        response_parts.append("Exam prep is all about strategy! Here's what works:\n\n"
+            "1. **Start early** — don't cram the night before\n"
+            "2. **Practice past papers** — they're the best predictor of real exams\n"
+            "3. **Focus on weak areas** — check your marks breakdown in the Dashboard\n"
+            "4. **Get enough sleep** — your brain consolidates learning during sleep\n"
+            "5. **Stay hydrated and eat well** on exam day")
+        suggested_actions.append("Review your lowest-scoring assessments first")
+        suggested_actions.append("Do at least one practice test under timed conditions")
+        academic_handled = True
+    
+    if any(w in msg_lower for w in ['recommend', 'suggestion', 'improve', 'better', 'strategy', 'strategies']):
+        if student_context.get("has_data"):
+            all_recs = []
+            for cdata in student_context["courses"].values():
+                all_recs.extend(cdata.get("recommendations", []))
+            if all_recs:
+                unique_recs = list(dict.fromkeys(all_recs))[:5]
+                response_parts.append("Based on your academic data, here are your personalized strategies:\n\n" + "\n".join(f"• {r}" for r in unique_recs))
+            else:
+                response_parts.append("Your performance is strong! Keep up the great work. Visit the AI Recommendations page for more detailed insights.")
+        else:
+            response_parts.append("For personalized recommendations, make sure you're logged in. I can give you general strategies in the meantime!")
+        suggested_actions.append("Visit the AI Recommendations page for detailed strategies")
+        academic_handled = True
+    
+    if any(w in msg_lower for w in ['understand', 'explain', 'confused', 'difficult', 'hard', 'dont get', "don't get", 'make sense']):
+        response_parts.append("No worries — confusion is the first step to understanding! Tell me the specific topic or concept, and I'll break it down into simple terms.")
+        suggested_actions.append("Write down what you DO understand, then identify the gap")
+        academic_handled = True
+    
+    if any(w in msg_lower for w in ['time management', 'too busy', 'no time', 'balance', 'work life']):
+        response_parts.append("Balancing everything is one of the hardest parts of being a student. Here are some tips:\n\n"
+            "1. **Prioritize**: Use the Eisenhower Matrix (urgent vs important)\n"
+            "2. **Block your time**: Dedicate specific hours to studying\n"
+            "3. **Say no**: It's okay to decline non-essential commitments\n"
+            "4. **Use dead time**: Commute, waiting rooms — review flashcards\n"
+            "5. **Take care of yourself first** — you can't pour from an empty cup")
+        suggested_actions.append("Try time-blocking your next week")
+        suggested_actions.append("Identify your top 3 priorities for this week")
+        academic_handled = True
+    
+    # Greetings
+    if any(w in msg_lower for w in ['hi', 'hello', 'hey', 'good morning', 'good evening', 'good afternoon']):
+        greetings = [
+            "Hello! I'm your AI academic counselor. I'm here to help you with studies, strategies, and anything that's on your mind. How are you doing today?",
+            "Hey there! Welcome! Whether it's academics, study tips, or just needing someone to talk to — I'm here for you. What's on your mind?",
+            "Hi! Great to see you. I can help with your coursework, study strategies, exam prep, or just be a supportive ear. What would you like to discuss?"
+        ]
+        response_parts.insert(0, random.choice(greetings))
+        academic_handled = True
+    
+    if any(w in msg_lower for w in ['thank', 'thanks', 'thx', 'appreciate']):
+        response_parts.append("You're welcome! Remember, asking for help is a sign of strength. I'm always here whenever you need support. Keep up the great work!")
+        academic_handled = True
+    
+    if any(w in msg_lower for w in ['who are you', 'what are you', 'what can you do', 'help me', 'what do you do']):
+        response_parts.append("I'm your **AI Academic Counselor** — think of me as your personal study buddy and support system! I can help with:\n\n"
+            "📚 **Academic Support**: Study tips, exam strategies, course recommendations\n"
+            "💡 **Performance Insights**: I can analyze your marks and suggest improvements\n"
+            "🧠 **Mental Wellness**: Stress management, motivation, and emotional support\n"
+            "📋 **Study Planning**: Time management and study techniques\n\n"
+            "Just chat with me about anything — I'm here to help you succeed!")
+        academic_handled = True
+    
+    # Default fallback
+    if not response_parts:
+        defaults = [
+            "Just chat with me about anything — I'm here to help you succeed!")
+        academic_handled = True
+    
+    # Default fallback
+    if not response_parts:
+        defaults = [
+            "I'm here to help you with anything academic or personal. You can ask me about your marks, study strategies, exam prep, or just talk about how you're feeling.",
+            "Tell me more! I can help with study tips, performance analysis, exam preparation, or just provide support. What's on your mind?",
+            "I'm your academic counselor — feel free to ask about study methods, your performance, exam strategies, or anything that's on your mind!"
+        ]
+        response_parts.append(random.choice(defaults))
+    
+    if not suggested_actions:
+        suggested_actions = ["Check your Dashboard for performance overview", "Explore AI Recommendations for study strategies"]
+    
+    return "\n\n".join(response_parts), suggested_actions
+
+# Generate or load encryption key
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", Fernet.generate_key().decode())
+fernet = Fernet(ENCRYPTION_KEY)
+
+# Add Groq API key to environment variables
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
-    Chat endpoint for AI tutor support
-    Provides academic help and emotional guidance
-    
-    Note: Bytez AI integration available but currently using rule-based responses
+    AI Academic Counselor endpoint
+    Provides personalized academic help, study strategies, and emotional support
+    Makes the student feel like they're making progress
     """
     try:
         message = request.message.strip()
+        student_id = request.student_id or "guest"
         
         if not message:
-            return ChatResponse(response="Please send a message for me to help you.")
+            return ChatResponse(
+                response="Hey! I'm your academic counselor. What would you like to talk about today?",
+                encouragement="Every conversation is a step toward your goals!"
+            )
         
-        # Use rule-based response for now
-        response = generate_supportive_response(message, None)
+        # Track session for progress awareness
+        if student_id not in student_chat_sessions:
+            student_chat_sessions[student_id] = {"message_count": 0, "topics_discussed": []}
+        student_chat_sessions[student_id]["message_count"] += 1
         
-        return ChatResponse(response=response)
+        # Detect emotion
+        emotion = detect_emotional_state(message)
+        
+        # Get student academic context
+        student_context = get_student_context(student_id)
+        
+        # Generate counselor response
+        response_text, suggested_actions = generate_counselor_response(message, emotion, student_context, student_id)
+        
+        # Generate encouragement
+        encouragement = get_encouragement(student_id, emotion)
+        
+        # Encrypt the response
+        encrypted_response = fernet.encrypt(response_text.encode()).decode()
+        
+        return ChatResponse(
+            response=encrypted_response,
+            detected_emotion=emotion,
+            encouragement=encouragement,
+            suggested_actions=suggested_actions
+        )
     
     except Exception as e:
         print(f"Chat error: {e}")
-        return ChatResponse(response="I'm here to help! Tell me what you're working on.")
+        return ChatResponse(
+            response="I'm here to help! Tell me what's on your mind — whether it's academics, study strategies, or just how you're feeling.",
+            encouragement="Taking the first step always matters most."
+        )
+
+@app.post("/api/chat", response_model=ChatResponse)
+def chat_endpoint(request: ChatRequest):
+    """
+    Chat endpoint - integrates with Groq API to fetch data and generate responses.
+    """
+    try:
+        # Extract student data
+        student_id = request.student_id or "guest"
+        student_data = None
+
+        if student_id != "guest":
+            validation = validate_student(student_id)
+            if validation["success"]:
+                student_data = validation["data"]
+
+        # Call Groq API
+        groq_query = {
+            "query": "query { studentData(id: \"%s\") { name, performance, recommendations } }" % student_id
+        }
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        groq_response = requests.post("https://api.groq.com/graphql", json=groq_query, headers=headers)
+
+        if groq_response.status_code != 200:
+            raise HTTPException(status_code=groq_response.status_code, detail="Groq API error")
+
+        groq_data = groq_response.json()
+        student_info = groq_data.get("data", {}).get("studentData", {})
+
+        # Generate AI response
+        response_text = f"Hello, {student_info.get('name', 'Student')}!\n\n"
+        response_text += f"Performance: {student_info.get('performance', 'Unknown')}\n"
+        response_text += f"Recommendations: {', '.join(student_info.get('recommendations', []))}"
+
+        # Encrypt the response
+        encrypted_response = fernet.encrypt(response_text.encode()).decode()
+
+        return ChatResponse(
+            response=encrypted_response,
+            detected_emotion="neutral",
+            encouragement="Keep up the good work!",
+            suggested_actions=["Review your recent results", "Focus on weak areas"]
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

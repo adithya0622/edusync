@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { studentAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { LogOut, TrendingUp, BookOpen, Award, Lightbulb, CheckCircle, BarChart3 } from 'lucide-react'
+import { LogOut, TrendingUp, BookOpen, Award, Lightbulb, CheckCircle, BarChart3, MessageCircle } from 'lucide-react'
 import '../styles/DashboardPage.css'
 
 interface CourseResult {
@@ -115,6 +115,10 @@ export default function DashboardPage() {
           <button onClick={() => navigate('/report')} className="btn-report">
             <BarChart3 size={20} />
             Report
+          </button>
+          <button onClick={() => navigate('/counselor')} className="btn-counselor">
+            <MessageCircle size={20} />
+            AI Counselor
           </button>
           <button onClick={handleLogout} className="btn-logout">
             <LogOut size={20} />

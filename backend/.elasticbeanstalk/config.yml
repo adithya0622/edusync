@@ -1,0 +1,13 @@
+version: 1
+applications:
+  - application_name: EdusyncBackend
+    environments:
+      - environment_name: EdusyncBackend-env
+        solution_stack_name: 64bit Amazon Linux 2 v3.4.6 running Python 3.9
+        option_settings:
+          - namespace: aws:elasticbeanstalk:container:python
+            option_name: WSGIPath
+            value: app:app
+          - namespace: aws:elasticbeanstalk:environment
+            option_name: EnvironmentType
+            value: SingleInstance

@@ -1,0 +1,340 @@
+.security-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #f1f5f9;
+  padding: 2rem;
+}
+
+.security-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.security-header h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  -webkit-background-clip: text;`n  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.security-header p {
+  font-size: 1.1rem;
+  color: #94a3b8;
+}
+
+.security-card {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.security-card h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: #f1f5f9;
+}
+
+.security-card h4 {
+  color: #3b82f6;
+  margin-bottom: 0.5rem;
+}
+
+/* Threat Scanner */
+.threat-scanner {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.scanner-input {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.email-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: rgba(51, 65, 85, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-size: 1rem;
+}
+
+.email-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+}
+
+.scan-btn {
+  padding: 0.75rem 2rem;
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.scan-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.4);
+}
+
+.scan-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.scan-message {
+  color: #94a3b8;
+  padding: 1rem;
+  background: rgba(51, 65, 85, 0.5);
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+/* Threat Status */
+.threat-status {
+  background: rgba(15, 23, 42, 0.95);
+  border: 2px solid rgba(148, 163, 184, 0.2);
+}
+
+.threat-indicator {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: rgba(51, 65, 85, 0.3);
+  border-radius: 12px;
+  border-left: 4px solid;
+}
+
+.threat-level {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: white;
+  min-width: 100px;
+  text-align: center;
+}
+
+.threat-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-item .label {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.detail-item .value {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
+/* Indicators */
+.indicators {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.indicator {
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.indicator.safe {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.indicator.warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+}
+
+.indicator.danger {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+/* Encryption Info */
+.encryption-info {
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.crypto-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.crypto-item {
+  padding: 1.5rem;
+  background: rgba(51, 65, 85, 0.3);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+}
+
+.crypto-item h4 {
+  margin-bottom: 0.5rem;
+}
+
+.crypto-item p {
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.quantum-proof {
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
+  border: 2px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+}
+
+.quantum-proof strong {
+  color: #10b981;
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.quantum-proof p {
+  color: #cbd5e1;
+}
+
+/* Zero Knowledge */
+.zero-knowledge {
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.zero-knowledge p {
+  color: #cbd5e1;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.zero-knowledge ul {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.zero-knowledge li {
+  padding: 0.75rem 1rem;
+  background: rgba(51, 65, 85, 0.3);
+  border-radius: 6px;
+  color: #10b981;
+  border-left: 3px solid #10b981;
+}
+
+/* Secure Study Plan */
+.secure-study {
+  background: rgba(15, 23, 42, 0.95);
+  text-align: center;
+}
+
+.secure-study p {
+  color: #cbd5e1;
+  margin-bottom: 2rem;
+}
+
+.qr-placeholder {
+  display: inline-block;
+  padding: 2rem 3rem;
+  background: rgba(51, 65, 85, 0.5);
+  border: 2px dashed rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .security-page {
+    padding: 1rem;
+  }
+
+  .security-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .security-card {
+    padding: 1.5rem;
+  }
+
+  .scanner-input {
+    flex-direction: column;
+  }
+
+  .threat-indicator {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* Back Button */
+.back-btn-security {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+  transition: all 0.2s;
+}
+.back-btn-security:hover { background: rgba(59,130,246,0.35); }
+
+/* Password Checker */
+.password-checker { background: rgba(15, 23, 42, 0.9); }
+.pw-check-desc { color: #94a3b8; margin-bottom: 1.5rem; font-size: 0.9rem; }
+
+.pw-result {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border-radius: 12px;
+  border-left: 4px solid #6b7280;
+}
+.pw-result-green  { background: rgba(16,185,129,0.1); border-left-color: #10b981; }
+.pw-result-high   { background: rgba(245,158,11,0.1); border-left-color: #f59e0b; }
+.pw-result-critical { background: rgba(239,68,68,0.1); border-left-color: #ef4444; }
+.pw-result-unknown { background: rgba(107,114,128,0.1); border-left-color: #6b7280; }
+
+.pw-result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+.pw-recommendation { color: #e2e8f0; margin: 0.5rem 0; }
+.pw-privacy-note { font-size: 0.78rem; color: #64748b; margin-top: 0.75rem; font-style: italic; }
