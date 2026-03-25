@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "env": {
-    "VITE_API_URL": "https://upgrade-backend-railway.up.railway.app",
+    "VITE_API_URL": "https://your-app-name.onrender.com",
     "VITE_API_KEY": "upgrade-ai-key-2026"
   },
   "rewrites": [

@@ -10,6 +10,7 @@ import sys
 import joblib
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -98,6 +99,14 @@ class StudentRecommendationResponse(BaseModel):
     total_marks: float
     recommendations: str
     message: Optional[str] = None
+
+class ChatRequest(BaseModel):
+    message: str
+    student_id: Optional[str] = "guest"
+
+class ChatResponse(BaseModel):
+    response: str
+    detected_emotion: Optional[str] = None
 
 # ==================== Utility Functions ====================
 
@@ -848,6 +857,89 @@ async def get_student_recommendation(
         raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting student recommendations: {str(e)}")
+
+# ==================== Chat Bot Endpoints ====================
+def detect_emotional_state(message: str) -> Optional[str]:
+    """
+    Detect if student is expressing emotional distress
+    Returns: emotion type or None
+    """
+    msg_lower = message.lower()
+    
+    if any(w in msg_lower for w in ['sad', 'depressed', 'lonely', 'unhappy', 'struggle', 'failure', 'tired', 'lost']):
+        return 'sad'
+    elif any(w in msg_lower for w in ['stress', 'anxiety', 'anxious', 'pressure', 'overwhelm', 'panic']):
+        return 'stressed'
+    elif any(w in msg_lower for w in ['frustrated', 'angry', 'annoyed', 'irritated', 'upset']):
+        return 'frustrated'
+    
+    return None
+
+def generate_supportive_response(message: str, emotion: Optional[str]) -> str:
+    """
+    Generate supportive and contextual responses
+    """
+    msg_lower = message.lower()
+    
+    # Emotional support takes priority
+    if emotion:
+        emotional_responses = {
+            'sad': [
+                "I understand you're struggling. Remember, this feeling is temporary and you can overcome it. Let's focus on what we can improve.",
+                "It's okay to feel down. Many successful students have been there. What specific subject can I help you with?"
+            ],
+            'stressed': [
+                "Stress is normal, but you're not alone. Let's break your work into smaller, manageable chunks. What's the priority?",
+                "Take a breath! Let's tackle one thing at a time. What would help you most right now?"
+            ],
+            'frustrated': [
+                "Frustration means you care about your studies. Let me help you find a new approach. What are you working on?"
+            ]
+        }
+        import random
+        return random.choice(emotional_responses.get(emotion, ["I'm here to help you. What's the topic?"]))
+    
+    # Context-based responses
+    if any(w in msg_lower for w in ['math', 'calculus', 'algebra', 'geometry', 'equation']):
+        return "I can help with math! What specific problem or concept are you struggling with? Share an example!"
+    
+    if any(w in msg_lower for w in ['code', 'program', 'python', 'java', 'javascript', 'debug']):
+        return "Great! I can help with programming. What language and what's the issue you're facing?"
+    
+    if any(w in msg_lower for w in ['exam', 'test', 'quiz', 'prepare', 'revision']):
+        return "Exam prep is important! What subjects are you preparing for? Let's make a study plan."
+    
+    if any(w in msg_lower for w in ['understand', 'explain', 'confused', 'difficult', 'hard']):
+        return "No problem! Let me explain it simply. What topic would you like me to break down?"
+    
+    if any(w in msg_lower for w in ['motivation', 'continue', 'give up', 'quit']):
+        return "Don't give up! You're capable of more than you think. What specific challenge can I help you overcome?"
+    
+    # Default response
+    return "I'm here to help you academically and emotionally. What would you like to discuss - is it a specific subject or how you're feeling?"
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    """
+    Chat endpoint for AI tutor support
+    Provides academic help and emotional guidance
+    
+    Note: Bytez AI integration available but currently using rule-based responses
+    """
+    try:
+        message = request.message.strip()
+        
+        if not message:
+            return ChatResponse(response="Please send a message for me to help you.")
+        
+        # Use rule-based response for now
+        response = generate_supportive_response(message, None)
+        
+        return ChatResponse(response=response)
+    
+    except Exception as e:
+        print(f"Chat error: {e}")
+        return ChatResponse(response="I'm here to help! Tell me what you're working on.")
 
 if __name__ == "__main__":
     import uvicorn
