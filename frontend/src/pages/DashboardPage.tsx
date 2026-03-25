@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { studentAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { LogOut, TrendingUp, Target, BookOpen, Award, Lightbulb, CheckCircle } from 'lucide-react'
+import { LogOut, TrendingUp, BookOpen, Award, Lightbulb, CheckCircle } from 'lucide-react'
 import '../styles/DashboardPage.css'
 
 interface CourseResult {

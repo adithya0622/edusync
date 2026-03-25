@@ -57,10 +57,15 @@ export default function RecommendationsPage() {
   return (
     <div className="recommendations-container">
       <div className="recommendations-header">
-        <button onClick={() => navigate('/dashboard')} className="btn-back">
-          <ArrowLeft size={20} />
-          Back to Marks
-        </button>
+        <div className="header-left">
+          <div className="logo-mini">
+            <img src="/logo.png" alt="Drop In Logo" className="logo-image-mini" />
+          </div>
+          <button onClick={() => navigate('/dashboard')} className="btn-back">
+            <ArrowLeft size={20} />
+            Back to Marks
+          </button>
+        </div>
         <h1>📊 AI Recommendations</h1>
       </div>
       
