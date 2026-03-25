@@ -6,7 +6,6 @@
     "VITE_API_URL",
     "VITE_API_KEY"
   ],
-  "envPrefix": "VITE_",
   "rewrites": [
     {
       "source": "/(.*)",
