@@ -327,11 +327,46 @@ def generate_ml_recommendations(student: dict, course_id: str) -> List[str]:
         print(f"Error in generate_ml_recommendations: {e}")
         return None
 
+def get_default_recommendations(performance_level: str) -> List[str]:
+    """
+    Get default personalized recommendations based on performance level
+    """
+    if performance_level == "Excellent":
+        return [
+            "Continue learning the same way",
+            "Mentor your peers and help them improve"
+        ]
+    elif performance_level == "Very Good":
+        return [
+            "Maintain your current study approach",
+            "Challenge yourself with advanced topics",
+            "Help classmates understand difficult concepts"
+        ]
+    elif performance_level == "Good":
+        return [
+            "Focus on strengthening weak areas",
+            "Practice more challenging problems",
+            "Form study groups with peers"
+        ]
+    elif performance_level == "Satisfactory":
+        return [
+            "Increase your study time and focus",
+            "Seek clarification from your instructor",
+            "Practice more regularly with revision notes"
+        ]
+    else:  # Needs Improvement
+        return [
+            "Talk to your instructor for extra help",
+            "Schedule consistent study sessions",
+            "Review fundamentals and core concepts",
+            "Attend additional practice sessions"
+        ]
+
 def generate_recommendations(student: dict, total_marks: float, performance_level: str, course_id: str = None) -> List[str]:
     """
     Generate learning strategy recommendations from Courses.xlsx using ML model.
     Returns actual teaching strategies mapped to areas needing improvement.
-    If no AI recommendations available, returns default suggestions.
+    If no AI recommendations available, returns default personalized suggestions based on performance.
     """
     recommendations = []
     
@@ -342,19 +377,12 @@ def generate_recommendations(student: dict, total_marks: float, performance_leve
             if ml_recommendations:
                 return ml_recommendations
         
-        # If no ML models trained, return default suggestions
-        # Student is doing well in this course
-        return [
-            "Continue learning the same way",
-            "Teach your peers"
-        ]
+        # If no ML models trained, return personalized default suggestions based on performance level
+        return get_default_recommendations(performance_level)
     
     except Exception as e:
         print(f"Error in generate_recommendations: {e}")
-        return [
-            "Continue learning the same way",
-            "Teach your peers"
-        ]
+        return get_default_recommendations(performance_level)
 
 # ==================== API Endpoints ====================
 
@@ -788,12 +816,21 @@ async def get_student_recommendation(
                     seen.add(r)
             recommendations_str = "\n".join(unique_recommendations)
         else:
-            # Default suggestions when no AI recommendations
-            default_recommendations = [
-                "1. Continue learning the same way",
-                "2. Teach your peers"
-            ]
-            recommendations_str = "\n".join(default_recommendations)
+            # Determine performance level to provide personalized default suggestions
+            if total_converted >= 200:
+                performance_level = "Excellent"
+            elif total_converted >= 150:
+                performance_level = "Very Good"
+            elif total_converted >= 100:
+                performance_level = "Good"
+            elif total_converted >= 50:
+                performance_level = "Satisfactory"
+            else:
+                performance_level = "Needs Improvement"
+            
+            # Get personalized default suggestions
+            default_recommendations = get_default_recommendations(performance_level)
+            recommendations_str = "\n".join([f"{i+1}. {rec}" for i, rec in enumerate(default_recommendations)])
         
         return StudentRecommendationResponse(
             success=True,
