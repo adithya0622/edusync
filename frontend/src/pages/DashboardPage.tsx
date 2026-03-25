@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { studentAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
@@ -123,7 +123,7 @@ export default function DashboardPage() {
           <h2 className="sidebar-title">Courses</h2>
           <div className="courses-list">
             {results &&
-              Object.entries(results).map(([courseId, data]) => (
+              Object.entries(results).map(([courseId]) => (
                 <button
                   key={courseId}
                   onClick={() => setSelectedCourse(courseId)}

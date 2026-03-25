@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { Mail, Lock, AlertCircle } from 'lucide-react'
+import { Mail, AlertCircle } from 'lucide-react'
 import '../styles/LoginPage.css'
 
 export default function LoginPage() {
