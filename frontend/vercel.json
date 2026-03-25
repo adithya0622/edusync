@@ -2,10 +2,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "env": [
-    "VITE_API_URL",
-    "VITE_API_KEY"
-  ],
+  "env": {
+    "VITE_API_URL": "https://upgrade-backend-railway.up.railway.app",
+    "VITE_API_KEY": "upgrade-ai-key-2026"
+  },
   "rewrites": [
     {
       "source": "/(.*)",
