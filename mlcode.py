@@ -14,6 +14,40 @@ from sklearn.ensemble import RandomForestClassifier
 
 import joblib
 
+# ==================== SECURITY LAYER SUPPORT ====================
+# Import encryption utilities for vault support
+try:
+    from backend.security_utils import read_encrypted_excel, get_or_create_encryption_key
+    HAS_ENCRYPTION = True
+except ImportError:
+    HAS_ENCRYPTION = False
+
+def read_students_file(sheet_name=None):
+    """
+    Read Students file with automatic vault support.
+    Tries encrypted vault first, falls back to plaintext.
+    """
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    students_vault = os.path.join(base_dir, "Students.vault")
+    students_file = os.path.join(base_dir, "Students.xlsx")
+    
+    # Try encrypted vault first
+    if HAS_ENCRYPTION and os.path.exists(students_vault):
+        try:
+            key = get_or_create_encryption_key()
+            df = read_encrypted_excel(students_vault, sheet_name=sheet_name, key=key)
+            print(f"✓ Read from encrypted vault for sheet: {sheet_name or 'default'}")
+            return df
+        except Exception as e:
+            print(f"Warning: Failed to read from vault: {e}")
+    
+    # Fall back to plaintext
+    if os.path.exists(students_file):
+        print(f"⚠️  Read from plaintext Students.xlsx for sheet: {sheet_name or 'default'}")
+        return pd.read_excel(students_file, sheet_name=sheet_name)
+    
+    raise FileNotFoundError(f"Neither vault nor Students.xlsx found")
+
 
 #==========================================================================================================================
 #Excel add
@@ -283,8 +317,8 @@ def class_recommendation(l):
 #Find students
 
 def findthem(student_id,class_id,course_id):
-    
-    df = pd.read_excel('Students.xlsx', sheet_name=course_id)
+    # Use the new read_students_file() to support both encrypted and plaintext data
+    df = read_students_file(sheet_name=course_id)
     df_courses = pd.read_excel('Courses.xlsx',sheet_name=course_id)
     
     result = df[(df['Class'] == class_id) & (df['Student Id'] == int(student_id))]
