@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { studentAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { LogOut, TrendingUp, Target, BookOpen, Award, Lightbulb, CheckCircle, AlertCircle } from 'lucide-react'
+import { LogOut, TrendingUp, Target, BookOpen, Award, Lightbulb, CheckCircle } from 'lucide-react'
 import '../styles/DashboardPage.css'
 
 interface CourseResult {
@@ -225,18 +225,14 @@ export default function DashboardPage() {
                     </>
                   ) : (
                     <div className="no-recommendations">
-                      <AlertCircle size={32} />
-                      <p className="no-rec-title">Strategies Coming Soon!</p>
-                      <p>📚 ML models are being trained with course-specific data...</p>
-                      <p>Personalized strategies from Courses.xlsx will appear here once training is complete.</p>
                       <div className="recommendation-tips">
-                        <h4>📖 In the meantime, consider:</h4>
+                        <h4>📖 Study Tips to Improve Your Performance:</h4>
                         <ul>
                           <li>Review your assessment scores to identify weak areas</li>
                           <li>Visit the "AI Recommendations" page for detailed insights</li>
                           <li>Focus on topics where you scored below 60%</li>
                           <li>Practice previous years' questions related to those topics</li>
-                          <li>Form study groups with classmates</li>
+                          <li>Form study groups with classmates to learn together</li>
                         </ul>
                       </div>
                     </div>
