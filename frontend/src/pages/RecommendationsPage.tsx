@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStudent } from '../context/StudentContext'
 import { recommendationAPI } from '../api/api'
@@ -21,6 +21,7 @@ export default function RecommendationsPage() {
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [pageLoading, setPageLoading] = useState(true)
   
   const [studentRec, setStudentRec] = useState<StudentRecommendation | null>(null)
   const [studentForm, setStudentForm] = useState({
@@ -28,12 +29,27 @@ export default function RecommendationsPage() {
     class_id: '',
     course_id: '19CSE301',
   })
-  
 
+  // Redirect if no authenticated user
+  useEffect(() => {
+    if (!studentId) {
+      navigate('/login')
+      return
+    }
+    setStudentForm(prev => ({ ...prev, student_id: studentId }))
+    setPageLoading(false)
+  }, [studentId, navigate])
 
   const handleGetStudentRecommendation = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!studentForm.student_id || !studentForm.class_id) {
+    
+    // Security check: Ensure student can only see their own data
+    if (studentForm.student_id !== studentId) {
+      setError('❌ You can only view your own recommendations')
+      return
+    }
+    
+    if (!studentForm.class_id) {
       setError('Please fill in all fields')
       return
     }
@@ -54,6 +70,17 @@ export default function RecommendationsPage() {
     }
   }
 
+  if (pageLoading) {
+    return (
+      <div className="recommendations-container">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="recommendations-container">
       <div className="recommendations-header">
@@ -72,17 +99,18 @@ export default function RecommendationsPage() {
       {error && <div className="error-alert">{error}</div>}
 
       <form onSubmit={handleGetStudentRecommendation} className="recommendation-form">
-          <h2>Get Student Recommendations</h2>
+          <h2>Your AI Recommendations</h2>
           
           <div className="form-group">
-            <label>Student ID:</label>
+            <label>Your Student ID:</label>
             <input
-              type="number"
+              type="text"
               value={studentForm.student_id}
-              onChange={(e) => setStudentForm({ ...studentForm, student_id: e.target.value })}
-              placeholder="Enter student ID"
-              required
+              disabled
+              className="form-input-disabled"
+              placeholder="Your ID"
             />
+            <p className="form-hint">You can only view your own recommendations</p>
           </div>
 
           <div className="form-group">

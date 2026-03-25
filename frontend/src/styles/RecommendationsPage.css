@@ -165,6 +165,19 @@
   box-shadow: 0 0 8px rgba(102, 126, 234, 0.2);
 }
 
+.form-input-disabled {
+  background-color: #f5f5f5 !important;
+  cursor: not-allowed;
+  color: #666 !important;
+}
+
+.form-hint {
+  font-size: 0.85em;
+  color: #666;
+  margin-top: 5px;
+  font-style: italic;
+}
+
 .submit-btn {
   width: 100%;
   padding: 15px;
