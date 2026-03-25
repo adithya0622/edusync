@@ -75,6 +75,32 @@
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+}
+
+.btn-export:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-export:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .report-content {
   max-width: 1400px;
   margin: 0 auto;
@@ -191,6 +217,87 @@
   outline: none;
 }
 
+/* Assessment Marks Table */
+.assessments-section {
+  margin-bottom: 40px;
+  page-break-inside: avoid;
+}
+
+.assessments-card {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.assessments-card h3 {
+  color: #1f2937;
+  margin: 0 0 20px 0;
+  font-size: 1.3rem;
+}
+
+.assessments-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 15px;
+  padding: 15px;
+  background: #f3f4f6;
+  border-radius: 8px 8px 0 0;
+  font-weight: 600;
+  color: #667eea;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 15px;
+  padding: 15px;
+  border-bottom: 1px solid #e5e7eb;
+  align-items: center;
+}
+
+.table-row:last-child {
+  border-bottom: none;
+  border-radius: 0 0 8px 8px;
+}
+
+.table-row:hover {
+  background: #f9fafb;
+  transition: background-color 0.2s ease;
+}
+
+.table-cell {
+  color: #1f2937;
+  font-size: 0.95rem;
+}
+
+.col-name {
+  font-weight: 500;
+}
+
+.col-marks {
+  text-align: center;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.col-max {
+  text-align: center;
+  color: #6b7280;
+}
+
+.col-percentage {
+  text-align: center;
+  font-weight: 600;
+  color: #10b981;
+}
+
 /* Charts Section */
 .charts-section {
   display: grid;
@@ -210,6 +317,7 @@
   padding: 25px;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  page-break-inside: avoid;
 }
 
 .chart-container h3 {
@@ -220,10 +328,14 @@
 
 .chart-wrapper {
   width: 100%;
-  height: 400px;
+  height: 320px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.pie-chart-container .chart-wrapper {
+  height: 380px;
 }
 
 .no-data {
@@ -401,5 +513,199 @@
 
   .report-content {
     padding: 20px 10px;
+  }
+
+  .table-header,
+  .table-row {
+    grid-template-columns: 1.5fr 1fr 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .col-percentage {
+    display: none;
+  }
+
+  .table-cell {
+    font-size: 0.85rem;
+  }
+}
+
+/* PDF Export Page Break */
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  
+  .pdf-page-break {
+    page-break-before: always;
+    margin-top: 0;
+    padding-top: 15px;
+  }
+  
+  .report-content {
+    padding: 15px;
+    max-width: 100%;
+    background: white;
+  }
+  
+  .student-info-section {
+    page-break-inside: avoid;
+    margin-bottom: 25px;
+  }
+  
+  .assessments-section {
+    page-break-inside: avoid;
+    margin-bottom: 25px;
+  }
+  
+  .assessments-card {
+    padding: 15px;
+    page-break-inside: avoid;
+  }
+  
+  .assessments-card h3 {
+    font-size: 1.1rem;
+    margin: 0 0 15px 0;
+  }
+  
+  .table-header {
+    padding: 10px;
+    font-size: 0.8rem;
+    gap: 10px;
+  }
+  
+  .table-row {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    gap: 10px;
+  }
+  
+  .table-header,
+  .table-row {
+    grid-template-columns: 2fr 0.8fr 0.8fr 0.8fr;
+  }
+  
+  /* Charts Section */
+  .charts-section {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-bottom: 20px;
+  }
+  
+  .chart-container {
+    padding: 15px;
+    margin-bottom: 15px;
+    page-break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+  }
+  
+  .bar-chart-container {
+    page-break-after: auto;
+  }
+  
+  .pie-chart-container {
+    page-break-before: always;
+    page-break-inside: avoid;
+  }
+  
+  .chart-container h3 {
+    font-size: 1.1rem;
+    margin: 0 0 15px 0;
+    color: #1f2937;
+  }
+  
+  .chart-wrapper {
+    height: 300px;
+    page-break-inside: avoid;
+  }
+  
+  .bar-chart-container .chart-wrapper {
+    height: 300px;
+  }
+  
+  .pie-chart-container .chart-wrapper {
+    height: 350px;
+  }
+  
+  .pie-legend {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+  }
+  
+  .legend-item {
+    font-size: 0.85rem;
+    margin: 5px 0;
+  }
+  
+  /* Summary Stats */
+  .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 0;
+    page-break-inside: avoid;
+  }
+  
+  .stat-card {
+    padding: 12px;
+    background: #f9fafb;
+    gap: 10px;
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+  }
+  
+  .stat-icon {
+    font-size: 1.8rem;
+    flex-shrink: 0;
+  }
+  
+  .stat-content h4 {
+    font-size: 0.75rem;
+    margin: 0 0 5px 0;
+    color: #6b7280;
+  }
+  
+  .stat-content p {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+  }
+  
+  /* Header and Info Card */
+  .info-card {
+    padding: 15px;
+    page-break-inside: avoid;
+  }
+  
+  .info-card h2 {
+    font-size: 1.1rem;
+    margin: 0 0 15px 0;
+  }
+  
+  .info-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  
+  .info-item label {
+    font-size: 0.8rem;
+  }
+  
+  .info-item span {
+    font-size: 0.95rem;
+  }
+  
+  .course-selector {
+    display: none;
+  }
+  
+  .report-header {
+    display: none;
   }
 }

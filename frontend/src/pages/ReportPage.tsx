@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStudent } from '../context/StudentContext'
 import { studentAPI } from '../api/api'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Download } from 'lucide-react'
+import html2pdf from 'html2pdf.js'
 import {
   BarChart,
   Bar,
@@ -31,11 +32,13 @@ interface CourseResult {
 export default function ReportPage() {
   const { studentId, studentName } = useStudent()
   const navigate = useNavigate()
+  const reportRef = useRef<HTMLDivElement>(null)
   
   const [results, setResults] = useState<Record<string, CourseResult> | null>(null)
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (!studentId) {
@@ -149,6 +152,41 @@ export default function ReportPage() {
     }
   ]
 
+  const handleExport = async () => {
+    if (!reportRef.current || !selectedCourse) return
+    
+    setExporting(true)
+    try {
+      const element = reportRef.current
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename: `${studentName}_${selectedCourse}_Report.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          removeContainer: true,
+          windowHeight: element.scrollHeight
+        },
+        jsPDF: { 
+          orientation: 'portrait', 
+          unit: 'mm', 
+          format: 'a4',
+          compress: true
+        },
+        pagebreak: {mode: ['avoid-all', 'css', 'legacy']}
+      }
+      html2pdf().set(opt).from(element).save()
+    } catch (err) {
+      console.error('Error exporting PDF:', err)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="report-container">
       {/* Header */}
@@ -163,9 +201,18 @@ export default function ReportPage() {
           </button>
         </div>
         <h1>📊 Performance Report</h1>
+        <button 
+          onClick={handleExport} 
+          className="btn-export"
+          disabled={exporting}
+          title="Download report as PDF"
+        >
+          <Download size={20} />
+          {exporting ? 'Exporting...' : 'Export'}
+        </button>
       </header>
 
-      <main className="report-content">
+      <main className="report-content" ref={reportRef}>
         {/* Student Info */}
         <section className="student-info-section">
           <div className="info-card">
@@ -210,6 +257,29 @@ export default function ReportPage() {
           )}
         </section>
 
+        {/* Assessment Marks Table */}
+        <section className="assessments-section">
+          <div className="assessments-card">
+            <h3>📋 Assessment-wise Marks</h3>
+            <div className="assessments-table">
+              <div className="table-header">
+                <div className="table-cell col-name">Assessment</div>
+                <div className="table-cell col-marks">Marks Obtained</div>
+                <div className="table-cell col-max">Max Marks</div>
+                <div className="table-cell col-percentage">Percentage</div>
+              </div>
+              {barChartData.map((item, index) => (
+                <div key={index} className="table-row">
+                  <div className="table-cell col-name">{item.name}</div>
+                  <div className="table-cell col-marks">{item.marks.toFixed(2)}</div>
+                  <div className="table-cell col-max">{item.maxMarks}</div>
+                  <div className="table-cell col-percentage">{item.percentage.toFixed(2)}%</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Charts Section */}
         <section className="charts-section">
           {/* Bar Chart */}
@@ -217,23 +287,23 @@ export default function ReportPage() {
             <h3>📈 Assessment-wise Performance</h3>
             <div className="chart-wrapper">
               {barChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={400}>
+                <ResponsiveContainer width="100%" height={340}>
                   <BarChart
                     data={barChartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    margin={{ top: 15, right: 20, left: 15, bottom: 70 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis
                       dataKey="name"
                       angle={-45}
                       textAnchor="end"
-                      height={100}
-                      tick={{ fontSize: 12 }}
+                      height={80}
+                      tick={{ fontSize: 11 }}
                     />
                     <YAxis 
                       label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }}
                       domain={[0, 100]}
-                      tick={{ fontSize: 12 }} 
+                      tick={{ fontSize: 11 }} 
                     />
                     <Tooltip
                       contentStyle={{
@@ -253,20 +323,20 @@ export default function ReportPage() {
           </div>
 
           {/* Pie Chart */}
-          <div className="chart-container pie-chart-container">
+          <div className="chart-container pie-chart-container pdf-page-break">
             <h3>🎯 Overall Score Progress</h3>
             <div className="chart-wrapper">
-              <ResponsiveContainer width="100%" height={400}>
+              <ResponsiveContainer width="100%" height={380}>
                 <PieChart>
                   <Pie
                     data={pieChartData}
                     cx="50%"
                     cy="50%"
-                    labelLine={false}
+                    labelLine={true}
                     label={(entry: any) =>
                       `${entry.name}: ${((entry.value / totalAttainable) * 100).toFixed(0)}%`
                     }
-                    outerRadius={100}
+                    outerRadius={110}
                     fill="#8884d8"
                     dataKey="value"
                   >

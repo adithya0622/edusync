@@ -162,50 +162,6 @@
   cursor: not-allowed;
 }
 
-.login-footer {
-  border-top: 1px solid #e5e7eb;
-  padding-top: 1.5rem;
-}
-
-.footer-hint {
-  text-align: center;
-  font-size: 0.85rem;
-  color: #6b7280;
-  margin-bottom: 1rem;
-}
-
-.test-emails {
-  background: #f0f9ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  padding: 1rem;
-}
-
-.test-emails p {
-  font-size: 0.85rem;
-  color: #1e40af;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.email-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.email-chips span {
-  display: inline-block;
-  padding: 0.35rem 0.75rem;
-  background: white;
-  border: 1px solid #bfdbfe;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  color: #1e40af;
-  font-family: 'Courier New', monospace;
-  font-weight: 500;
-}
-
 /* Responsive */
 @media (max-width: 600px) {
   .login-card {

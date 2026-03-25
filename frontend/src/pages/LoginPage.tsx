@@ -94,18 +94,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        <div className="login-footer">
-          <p className="footer-hint">Only top 5 performers can log in</p>
-          <div className="test-emails">
-            <p>Test Emails:</p>
-            <div className="email-chips">
-              <span>22001@gmail.com</span>
-              <span>22002@gmail.com</span>
-              <span>22003@gmail.com</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )
