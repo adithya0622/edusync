@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { studentAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { LogOut, TrendingUp, Target, BookOpen, Award } from 'lucide-react'
+import { LogOut, TrendingUp, Target, BookOpen, Award, Lightbulb, CheckCircle, AlertCircle } from 'lucide-react'
 import '../styles/DashboardPage.css'
 
 interface CourseResult {
@@ -196,24 +196,49 @@ export default function DashboardPage() {
               {/* Recommendations */}
               <div className="recommendations-section">
                 <div className="recommendations-header">
-                  <Target size={24} />
-                  <h3>Recommended Strategies</h3>
+                  <Lightbulb size={24} />
+                  <h3>Recommended Strategies & Actions</h3>
                 </div>
-                <div className="recommendations-list">
+                <div className="recommendations-content">
                   {currentResult.recommendations && currentResult.recommendations.length > 0 ? (
-                    currentResult.recommendations.map((rec, idx) => (
-                      <div key={idx} className="recommendation-item">
-                        <span className="rec-number">{idx + 1}</span>
-                        <span className="rec-text">{rec}</span>
+                    <>
+                      <div className="recommendations-intro">
+                        <CheckCircle size={20} />
+                        <p>Based on your performance, here are personalized learning strategies:</p>
                       </div>
-                    ))
+                      <div className="recommendations-list">
+                        {currentResult.recommendations.map((rec, idx) => (
+                          <div key={idx} className="recommendation-item">
+                            <div className="rec-icon">
+                              <span className="rec-number">{idx + 1}</span>
+                            </div>
+                            <div className="rec-content">
+                              <p className="rec-text">{rec}</p>
+                              <p className="rec-hint">💡 Tip: Focus on this area to improve your overall performance</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="recommendations-footer">
+                        <p>✅ Need more details? Click "AI Recommendations" button to explore in-depth strategies.</p>
+                      </div>
+                    </>
                   ) : (
                     <div className="no-recommendations">
-                      <p>📚 ML models are being trained...</p>
-                      <p>Strategies from Courses.xlsx will appear here once training is complete.</p>
-                      <p style={{ fontSize: '0.9em', marginTop: '10px', color: '#666' }}>
-                        Visit the "AI Recommendations" page for more details.
-                      </p>
+                      <AlertCircle size={32} />
+                      <p className="no-rec-title">Strategies Coming Soon!</p>
+                      <p>📚 ML models are being trained with course-specific data...</p>
+                      <p>Personalized strategies from Courses.xlsx will appear here once training is complete.</p>
+                      <div className="recommendation-tips">
+                        <h4>📖 In the meantime, consider:</h4>
+                        <ul>
+                          <li>Review your assessment scores to identify weak areas</li>
+                          <li>Visit the "AI Recommendations" page for detailed insights</li>
+                          <li>Focus on topics where you scored below 60%</li>
+                          <li>Practice previous years' questions related to those topics</li>
+                          <li>Form study groups with classmates</li>
+                        </ul>
+                      </div>
                     </div>
                   )}
                 </div>
