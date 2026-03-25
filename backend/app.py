@@ -124,10 +124,7 @@ def validate_student(roll_no: str) -> dict:
     try:
         df = read_students_excel()
 
-        # Sort and get top 5 students
-        df = df.sort_values(by="total_marks", ascending=False).head(5)
-
-        # Check if roll_no exists in the top 5
+        # Check if roll_no exists in the dataframe (any student, not just top 5)
         student_row = None
         for col in df.columns:
             if 'roll' in col.lower() or 'id' in col.lower():
@@ -139,7 +136,7 @@ def validate_student(roll_no: str) -> dict:
                         "data": student_row.iloc[0].to_dict()
                     }
 
-        return {"success": False, "data": None, "error": "User not in top 5"}
+        return {"success": False, "data": None, "error": f"Student with Roll No {roll_no} not found"}
 
     except Exception as e:
         return {"success": False, "data": None, "error": str(e)}
