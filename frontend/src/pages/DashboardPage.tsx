@@ -95,9 +95,9 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-left">
-          <div className="logo-mini">U</div>
+          <div className="logo-mini">D</div>
           <div className="header-title">
-            <h1>Upgrade</h1>
+            <h1>Drop In</h1>
             <p>Student Learning Recommendations</p>
           </div>
         </div>

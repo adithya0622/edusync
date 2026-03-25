@@ -48,9 +48,9 @@ export default function LoginPage() {
       <div className="login-card">
         <div className="login-header">
           <div className="logo-circle">
-            <span className="logo-text">U</span>
+            <span className="logo-text">D</span>
           </div>
-          <h1>Upgrade</h1>
+          <h1>Drop In</h1>
           <p className="subtitle">Student Learning Recommendation System</p>
         </div>
 

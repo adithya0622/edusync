@@ -23,7 +23,7 @@ try:
 except ImportError:
     mlcode = None
 
-app = FastAPI(title="Upgrade - Student Learning Recommendation System")
+app = FastAPI(title="Drop In - Student Learning Recommendation System")
 
 # Update CORSMiddleware to allow all origins
 app.add_middleware(
@@ -361,7 +361,7 @@ def generate_recommendations(student: dict, total_marks: float, performance_leve
 @app.get("/")
 async def root():
     """Health check endpoint"""
-    return {"message": "Upgrade API Server Running", "status": "ok"}
+    return {"message": "Drop In API Server Running", "status": "ok"}
 
 @app.post("/api/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
@@ -699,7 +699,7 @@ async def get_models_status():
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "Upgrade API"}
+    return {"status": "healthy", "service": "Drop In API"}
 
 # ==================== ML Recommendation Endpoints ====================
 
