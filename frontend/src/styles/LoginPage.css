@@ -41,18 +41,20 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 1.5rem;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+  overflow: hidden;
 }
 
-.logo-text {
-  color: white;
-  font-size: 2rem;
-  font-weight: 700;
+.logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
 }
 
 .login-header h1 {
