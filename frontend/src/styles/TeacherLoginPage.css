@@ -1,19 +1,19 @@
-/* Login Page Styles */
-.login-container {
+/* Teacher Login Page – reuses Login Page design tokens */
+.teacher-login-container {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
   padding: 0;
   margin: 0;
   overflow: hidden;
 }
 
-.login-card {
+.teacher-login-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -22,17 +22,11 @@
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.login-header {
+.teacher-login-header {
   text-align: center;
   margin-bottom: 2rem;
 }
@@ -57,7 +51,7 @@
   padding: 2px;
 }
 
-.login-header h1 {
+.teacher-login-header h1 {
   color: #1f2937;
   margin-bottom: 0.5rem;
 }
@@ -68,7 +62,7 @@
 }
 
 .login-form {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-group {
@@ -94,118 +88,101 @@
   left: 12px;
   color: #9ca3af;
   pointer-events: none;
+  z-index: 1;
 }
 
 .form-input {
   width: 100%;
-  padding: 0.75rem 1rem 0.75rem 2.75rem !important;
+  padding: 0.875rem 0.875rem 0.875rem 2.75rem;
   border: 2px solid #e5e7eb;
-  font-size: 0.95rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  color: #1f2937;
+  background: #f9fafb;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 }
 
 .form-input:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.form-input::placeholder {
-  color: #c0c7d9;
-}
-
-.input-hint {
-  font-size: 0.85rem;
-  color: #9ca3af;
-  margin-top: 0.5rem;
-  margin-left: 0.5rem;
-}
-
-.error-message {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background-color: #fee2e2;
-  border-left: 4px solid #ef4444;
-  border-radius: 6px;
-  color: #dc2626;
-  margin-bottom: 1.5rem;
-  font-size: 0.9rem;
-}
-
-.error-message svg {
-  flex-shrink: 0;
-}
-
-.login-button {
-  width: 100%;
-  padding: 0.875rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  font-size: 1rem;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.login-button:hover:not(:disabled) {
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-  transform: translateY(-2px);
-}
-
-.login-button:disabled {
-  opacity: 0.8;
-  cursor: not-allowed;
-}
-
-/* Responsive */
-@media (max-width: 600px) {
-  .login-card {
-    padding: 2rem 1.5rem;
-  }
-
-  .login-header h1 {
-    font-size: 1.75rem;
-  }
-
-  .logo-circle {
-    width: 70px;
-    height: 70px;
-  }
-
-  .logo-text {
-    font-size: 1.75rem;
-  }
+  outline: none;
+  border-color: #764ba2;
+  box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.1);
+  background: white;
 }
 
 .form-select {
   appearance: none;
   cursor: pointer;
-  background: #f9fafb;
 }
 
-.form-select:focus {
-  background: white;
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
 }
 
-.back-to-role {
-  display: block;
+.login-button {
   width: 100%;
+  padding: 0.95rem;
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.login-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(118, 75, 162, 0.35);
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.back-link {
+  display: block;
   text-align: center;
   background: none;
   border: none;
-  color: #667eea;
+  color: #764ba2;
+  cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  cursor: pointer;
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
   text-decoration: underline;
+  width: 100%;
 }
 
-.back-to-role:hover {
-  color: #764ba2;
+.back-link:hover {
+  color: #667eea;
 }

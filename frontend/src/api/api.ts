@@ -12,19 +12,22 @@ const api = axios.create({
 })
 
 export const authAPI = {
-  login: (email: string) =>
-    api.post('/api/login', { email }),
+  login: (email: string, class_name: string) =>
+    api.post('/api/login', { email, class_name }),
 }
 
 export const studentAPI = {
-  getResults: (rollNo: string) =>
-    api.get(`/api/student/${rollNo}/results`),
+  getClasses: () =>
+    api.get('/api/student/classes'),
+
+  getResults: (rollNo: string, className?: string) =>
+    api.get(`/api/student/${rollNo}/results`, { params: className ? { class_name: className } : {} }),
   
   getProfile: (rollNo: string) =>
     api.get(`/api/student/${rollNo}/profile`),
 
-  getRecommendations: (rollNo: string) =>
-    api.get(`/api/student/${rollNo}/recommendations`),
+  getRecommendations: (rollNo: string, className?: string) =>
+    api.get(`/api/student/${rollNo}/recommendations`, { params: className ? { class_name: className } : {} }),
   
   getCourses: () =>
     api.get('/api/courses'),
@@ -77,6 +80,23 @@ export const chatAPI = {
       student_id: studentId || 'guest',
       conversation_history: conversationHistory || [],
     }),
+}
+
+export const teacherAPI = {
+  login: (email: string, class_name: string) =>
+    api.post('/api/teacher/login', { email, class_name }),
+
+  getClasses: () =>
+    api.get('/api/teacher/classes'),
+
+  getClassStudents: (class_name: string) =>
+    api.get(`/api/teacher/class/${encodeURIComponent(class_name)}/students`),
+
+  updateMarks: (roll_no: string, course: string, marks: Record<string, number>) =>
+    api.put(`/api/teacher/student/${roll_no}/marks`, { course, marks }),
+
+  addStudent: (roll_no: string, class_name: string, courses: Record<string, Record<string, number>>) =>
+    api.post('/api/teacher/student/add', { roll_no, class_name, courses }),
 }
 
 export default api

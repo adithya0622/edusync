@@ -1,93 +1,75 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { authAPI, studentAPI } from '../api/api'
-import { useStudent } from '../context/StudentContext'
+import { teacherAPI } from '../api/api'
 import { Mail, Users, AlertCircle } from 'lucide-react'
-import '../styles/LoginPage.css'
+import '../styles/TeacherLoginPage.css'
 
-export default function LoginPage() {
+export default function TeacherLoginPage() {
   const [email, setEmail] = useState('')
   const [className, setClassName] = useState('')
   const [classes, setClasses] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
-  const { setStudent } = useStudent()
 
   useEffect(() => {
-    studentAPI.getClasses()
-      .then(res => { if (res.data.success) setClasses(res.data.classes) })
-      .catch(() => {})
+    teacherAPI.getClasses()
+      .then(res => {
+        if (res.data.success) setClasses(res.data.classes)
+      })
+      .catch(() => setClasses(['CSE A', 'CSE B']))
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-
     try {
-      if (!email.includes('@')) {
-        setError('Please enter a valid email address')
-        setLoading(false)
-        return
-      }
-      if (!className) {
-        setError('Please select your class')
-        setLoading(false)
-        return
-      }
-
-      const response = await authAPI.login(email, className)
-      
-      if (response.data.success) {
-        setStudent(
-          response.data.student_id,
-          response.data.student_name || `Student ${response.data.student_id}`,
-          response.data.token,
-          response.data.student_class || className
-        )
-        navigate('/dashboard')
+      const res = await teacherAPI.login(email, className)
+      if (res.data.success) {
+        localStorage.setItem('teacherLoggedIn', 'true')
+        localStorage.setItem('teacherClass', className)
+        navigate('/teacher/dashboard')
       } else {
-        setError(response.data.message || 'Login failed')
+        setError(res.data.message || 'Login failed')
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.response?.data?.error || 'Failed to login. Please check your details.')
+      setError(err.response?.data?.detail || 'Invalid teacher credentials')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="login-header">
+    <div className="teacher-login-container">
+      <div className="teacher-login-card">
+        <div className="teacher-login-header">
           <div className="logo-circle">
             <img src="/logo.png" alt="Drop In Logo" className="logo-image" />
           </div>
-          <h1>Drop In</h1>
-          <p className="subtitle">Student Learning Recommendation System</p>
+          <h1>Teacher Login</h1>
+          <p className="subtitle">Drop In — Educator Portal</p>
         </div>
 
         <form onSubmit={handleLogin} className="login-form">
           <div className="form-group">
-            <label htmlFor="email">Email Address</label>
+            <label htmlFor="teacher-email">Email Address</label>
             <div className="input-wrapper">
               <Mail size={20} className="input-icon" />
               <input
-                id="email"
+                id="teacher-email"
                 type="email"
-                placeholder="e.g., 22001@gmail.com"
+                placeholder="teacher123@gmail.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 disabled={loading}
                 className="form-input"
               />
             </div>
-            <p className="input-hint">Use your rollno@gmail.com format</p>
           </div>
 
           <div className="form-group">
-            <label htmlFor="class-select">Your Class</label>
+            <label htmlFor="class-select">Select Class</label>
             <div className="input-wrapper">
               <Users size={20} className="input-icon" />
               <select
@@ -97,7 +79,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="form-input form-select"
               >
-                <option value="">-- Select your class --</option>
+                <option value="">-- Select Class --</option>
                 {classes.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -118,17 +100,14 @@ export default function LoginPage() {
             className="login-button"
           >
             {loading ? (
-              <>
-                <span className="spinner"></span>
-                Signing in...
-              </>
+              <><span className="spinner"></span>Signing in...</>
             ) : (
-              'Sign In'
+              'Sign In as Teacher'
             )}
           </button>
         </form>
 
-        <button onClick={() => navigate('/role')} className="back-to-role">
+        <button onClick={() => navigate('/role')} className="back-link">
           ← Back to role selection
         </button>
       </div>

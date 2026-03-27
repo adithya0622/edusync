@@ -12,9 +12,25 @@ from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
 import requests
 from cryptography.fernet import Fernet
+import hashlib
+import base64
+from urllib.parse import quote_plus
 
 # Load environment variables
 load_dotenv()
+
+# ── Roll number encryption (stable key derived from secret) ──────────────────
+_rn_secret = os.getenv("ROLL_ENCRYPT_SECRET", "dropin-rollno-key-2026")
+_rn_fernet = Fernet(
+    base64.urlsafe_b64encode(
+        hashlib.pbkdf2_hmac('sha256', _rn_secret.encode(), b'dropin_v1', 100000)
+    )
+)
+
+def mask_roll_no(roll_no: str) -> str:
+    """Mask roll number for display: first 2 digits visible, rest as asterisks"""
+    s = str(roll_no).strip()
+    return s[:2] + '*' * max(0, len(s) - 2)
 
 # Add parent directory to path to import mlcode
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -67,6 +83,7 @@ def verify_api_key(x_api_key: str = Header(None)) -> str:
 # ==================== Models ====================
 class LoginRequest(BaseModel):
     email: str
+    class_name: Optional[str] = None
     password: Optional[str] = None
 
 class LoginResponse(BaseModel):
@@ -74,6 +91,7 @@ class LoginResponse(BaseModel):
     message: str
     student_id: Optional[str] = None
     student_name: Optional[str] = None
+    student_class: Optional[str] = None
     token: Optional[str] = None
 
 class StudentResult(BaseModel):
@@ -115,7 +133,7 @@ class ChatResponse(BaseModel):
 # ==================== Utility Functions ====================
 
 def read_students_excel():
-    """Read the Students Excel file"""
+    """Read the Students Excel file (first sheet)"""
     try:
         if not os.path.exists(STUDENTS_FILE):
             raise FileNotFoundError(f"Students file not found at {STUDENTS_FILE}")
@@ -123,6 +141,27 @@ def read_students_excel():
         return df
     except Exception as e:
         raise Exception(f"Error reading Students file: {str(e)}")
+
+def get_dept_from_class(class_name: str) -> str:
+    """Extract department prefix from class name. e.g. 'CSE A' -> 'CSE'"""
+    return class_name.strip().split()[0].upper() if class_name else ""
+
+def get_dept_sheets(dept: str) -> List[str]:
+    """Get sheet names in Students.xlsx that belong to a department"""
+    xl = pd.ExcelFile(STUDENTS_FILE)
+    return [s for s in xl.sheet_names if dept.upper() in s.upper()]
+
+def get_all_classes() -> List[str]:
+    """Return all unique class names from Students.xlsx"""
+    xl = pd.ExcelFile(STUDENTS_FILE)
+    classes = set()
+    for sheet in xl.sheet_names:
+        df = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+        for col in df.columns:
+            if 'class' in col.lower():
+                classes.update(df[col].dropna().astype(str).str.strip().unique())
+                break
+    return sorted(classes)
 
 def extract_roll_no_from_email(email: str) -> str:
     """Extract roll number from email (e.g., 22001@gmail.com -> 22001)"""
@@ -132,34 +171,51 @@ def extract_roll_no_from_email(email: str) -> str:
     except:
         return None
 
-def validate_student(roll_no: str) -> dict:
-    """Validate if student exists in Students Excel file"""
+def validate_student(roll_no: str, class_name: str = None) -> dict:
+    """Validate if student exists; optionally filter by class/department"""
     try:
-        df = read_students_excel()
+        # Determine which sheets to search
+        if class_name:
+            dept = get_dept_from_class(class_name)
+            sheets = get_dept_sheets(dept) if dept else []
+        else:
+            xl = pd.ExcelFile(STUDENTS_FILE)
+            sheets = xl.sheet_names
 
-        # Check if roll_no exists in the dataframe (any student, not just top 5)
-        student_row = None
-        for col in df.columns:
-            if 'roll' in col.lower() or 'id' in col.lower():
-                mask = df[col].astype(str).str.contains(str(roll_no), case=False, na=False)
-                student_row = df[mask]
-                if not student_row.empty:
-                    return {
-                        "success": True,
-                        "data": student_row.iloc[0].to_dict()
-                    }
+        for sheet in sheets:
+            df = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+            for col in df.columns:
+                if 'roll' in col.lower() or ('student' in col.lower() and 'id' in col.lower()):
+                    mask = df[col].astype(str).str.strip() == str(roll_no).strip()
+                    student_row = df[mask]
+                    if not student_row.empty:
+                        row_data = student_row.iloc[0].to_dict()
+                        # If class_name provided, verify it matches
+                        if class_name:
+                            for c in df.columns:
+                                if 'class' in c.lower():
+                                    if str(row_data.get(c, '')).strip() == class_name.strip():
+                                        return {"success": True, "data": row_data}
+                                    else:
+                                        break  # Wrong class in this sheet row
+                        else:
+                            return {"success": True, "data": row_data}
+                    break
 
-        return {"success": False, "data": None, "error": f"Student with Roll No {roll_no} not found"}
+        return {"success": False, "data": None, "error": f"Student {roll_no} not found" + (f" in class {class_name}" if class_name else "")}
 
     except Exception as e:
         return {"success": False, "data": None, "error": str(e)}
 
-def get_student_results(roll_no: str) -> dict:
-    """Get student results and performance data from all sheets"""
+def get_student_results(roll_no: str, class_name: str = None) -> dict:
+    """Get student results and performance data from 302 sheets only"""
     try:
-        # Get all sheet names
         excel_file = pd.ExcelFile(STUDENTS_FILE)
-        sheet_names = excel_file.sheet_names
+        if class_name:
+            dept = get_dept_from_class(class_name)
+            sheet_names = [s for s in excel_file.sheet_names if dept.upper() in s.upper() and '302' in s]
+        else:
+            sheet_names = [s for s in excel_file.sheet_names if '302' in s]
         
         all_results = {}
         found_student = False
@@ -207,15 +263,63 @@ def get_student_results(roll_no: str) -> dict:
                 
                 # Generate recommendations with course_id and full student data (including converted marks)
                 recommendations = generate_recommendations(student_data, total_marks, performance_level, sheet_name)
-                
+
+                # ── Online resources for weak assessments ──────────────────
+                online_resources = []
+                try:
+                    course_301_id = sheet_name.replace("302", "301")
+                    curriculum_map = get_curriculum_map(course_301_id)
+                    if curriculum_map:
+                        df_c = pd.read_excel(COURSES_FILE, sheet_name=sheet_name, engine='openpyxl')
+                        if 'Assessments' in df_c.columns:
+                            # Reuse same threshold logic as generate_ml_recommendations
+                            max_marks_col = None
+                            for col in df_c.columns:
+                                if 'converted' in col.lower() and 'mark' in col.lower():
+                                    max_marks_col = col
+                                    break
+                            if not max_marks_col:
+                                for col in df_c.columns:
+                                    if 'total' in col.lower() and 'mark' in col.lower():
+                                        max_marks_col = col
+                                        break
+                            threshold_pct = 0.60
+                            for idx, row in df_c.iterrows():
+                                assessment_name = str(row['Assessments']).strip() if pd.notna(row['Assessments']) else None
+                                if not assessment_name:
+                                    continue
+                                student_mark = None
+                                for key in [f"{assessment_name} Converted", assessment_name]:
+                                    if key in student_data:
+                                        val = student_data[key]
+                                        if val is not None and not (isinstance(val, float) and pd.isna(val)):
+                                            student_mark = float(val)
+                                            break
+                                if student_mark is None:
+                                    continue
+                                max_val = float(row[max_marks_col]) if max_marks_col and pd.notna(row.get(max_marks_col)) else None
+                                if max_val is None or max_val <= 0:
+                                    continue
+                                if student_mark < threshold_pct * max_val:
+                                    topic = curriculum_map.get(assessment_name, "")
+                                    if topic:
+                                        online_resources.append({
+                                            "assessment": assessment_name,
+                                            "topic": topic,
+                                            "resources": get_online_resources(topic)
+                                        })
+                except Exception as res_err:
+                    print(f"Error generating online resources: {res_err}")
+
                 all_results[sheet_name] = {
                     "course": sheet_name,
                     "student_name": student_data.get("Student Name", student_data.get("Name", "Unknown")),
                     "roll_no": roll_no,
                     "marks": marks_data,
-                    "total_marks": total_marks,
+                    "total_marks": round(total_marks, 2),
                     "performance_level": performance_level,
-                    "recommendations": recommendations
+                    "recommendations": recommendations,
+                    "online_resources": online_resources
                 }
         
         if not found_student:
@@ -257,85 +361,158 @@ def get_course_strategies(course_id: str) -> Dict[str, str]:
         print(f"Error getting course strategies: {e}")
         return {}
 
+def get_curriculum_map(course_301_id: str) -> Dict[str, str]:
+    """
+    Read the Curriculum column from a 301 Courses sheet.
+    Returns {assessment_name: curriculum_topics_string}
+    """
+    try:
+        if not os.path.exists(COURSES_FILE):
+            return {}
+        df = pd.read_excel(COURSES_FILE, sheet_name=course_301_id, engine='openpyxl')
+        if 'Assessments' not in df.columns or 'Curriculum' not in df.columns:
+            return {}
+        result: Dict[str, str] = {}
+        for _, row in df.iterrows():
+            if pd.notna(row['Assessments']) and pd.notna(row['Curriculum']):
+                result[str(row['Assessments']).strip()] = str(row['Curriculum']).strip()
+        return result
+    except Exception as e:
+        print(f"Error reading curriculum map for {course_301_id}: {e}")
+        return {}
+
+
+def get_online_resources(topic: str) -> List[Dict]:
+    """
+    Build a list of free online course/resource links for the given curriculum topic.
+    URLs are targeted to course/article pages where possible.
+    """
+    primary = topic.split(',')[0].strip()  # most specific keyword
+    # Focused keyword: strip generic lead-in words to reach the core concept
+    stop_starts = ("introduction to ", "intro to ", "overview of ", "basics of ", "fundamentals of ")
+    focused = primary
+    for s in stop_starts:
+        if focused.lower().startswith(s):
+            focused = focused[len(s):].strip()
+            break
+
+    yt_q      = quote_plus(primary + " full course tutorial")
+    nptel_q   = quote_plus(focused)
+    coursera_q= quote_plus(focused)
+    gfg_q     = quote_plus(focused)
+    mit_q     = quote_plus(focused)
+
+    return [
+        {
+            "title": f"YouTube – {primary}",
+            "url": f"https://www.youtube.com/results?search_query={yt_q}",
+            "platform": "YouTube",
+            "icon": "youtube",
+            "how_to_use": "Search opens automatically. Pick a video with 10K+ views whose title matches your topic. Watch it once, then re-watch the tricky parts while taking notes."
+        },
+        {
+            "title": f"NPTEL – {primary}",
+            "url": f"https://nptel.ac.in/courses?searchByKeyword={nptel_q}",
+            "platform": "NPTEL",
+            "icon": "nptel",
+            "how_to_use": "Click any course card, then open 'Week 1' or the relevant week. Watch the IIT professor lecture at 1.25× speed and download the transcript PDF for offline reading."
+        },
+        {
+            "title": f"Coursera – {primary}",
+            "url": f"https://www.coursera.org/search?query={coursera_q}",
+            "platform": "Coursera",
+            "icon": "coursera",
+            "how_to_use": "Click a course, then choose \"Audit for free\" (bottom of the enroll popup). You get full access to videos and readings at no cost — just no certificate."
+        },
+        {
+            "title": f"GeeksForGeeks – {primary}",
+            "url": f"https://www.geeksforgeeks.org/?s={gfg_q}",
+            "platform": "GeeksForGeeks",
+            "icon": "gfg",
+            "how_to_use": "Click the first article whose title matches your topic. Read the explanation and work through the examples. Scroll to the bottom for practice questions."
+        },
+        {
+            "title": f"MIT OCW – {primary}",
+            "url": f"https://ocw.mit.edu/search/?q={mit_q}&type=course",
+            "platform": "MIT OCW",
+            "icon": "mit",
+            "how_to_use": "Click a course that matches your topic. Go to 'Lecture Notes' for PDF slides or 'Video Lectures' for recorded classes. This is free MIT university material."
+        },
+    ]
+
+
 def generate_ml_recommendations(student: dict, course_id: str) -> List[str]:
     """
-    Generate strategy recommendations from Courses.xlsx based on LOW converted marks.
-    
-    For each assessment:
-    - Get the converted mark from student data
-    - Calculate if it's below threshold (75% of max converted marks)
-    - If below threshold, include the strategy for that assessment (word-for-word from Courses.xlsx)
-    
-    Returns: List of strategies (word-for-word from Courses.xlsx) for weak assessments only
+    Generate strategy recommendations from Courses.xlsx based on LOW marks.
+    Works with both raw marks (302 sheets) and converted marks (301 sheets).
+    Compares student mark against 75% of the Total Marks for each assessment.
     """
     recommendations = []
-    
+
     try:
-        # Get Courses.xlsx data
         df_courses = pd.read_excel(COURSES_FILE, sheet_name=course_id, engine='openpyxl')
-        
+
         if 'Assessments' not in df_courses.columns:
             return None
-        
-        # Find strategies column (handle various naming)
+
+        # Find strategies column
         strategies_col = None
         for col in df_courses.columns:
             if 'strateg' in col.lower():
                 strategies_col = col
                 break
-        
         if not strategies_col:
             return None
-        
-        # Find converted marks column
-        converted_marks_col = None
+
+        # Find max-marks column: prefer "Converted Marks" then "Total Marks"
+        max_marks_col = None
         for col in df_courses.columns:
             if 'converted' in col.lower() and 'mark' in col.lower():
-                converted_marks_col = col
+                max_marks_col = col
                 break
-        
-        if not converted_marks_col:
+        if not max_marks_col:
+            for col in df_courses.columns:
+                if 'total' in col.lower() and 'mark' in col.lower():
+                    max_marks_col = col
+                    break
+        if not max_marks_col:
             return None
-        
-        # Get assessments and their info
+
         assessments = df_courses['Assessments'].values
         strategies = df_courses[strategies_col].values
-        converted_marks_max = df_courses[converted_marks_col].values
-        
-        # Threshold: 75% of max converted marks for each assessment
-        threshold_percentage = 0.75
-        
-        # For each assessment, check if student's mark is below threshold
+        max_marks_vals = df_courses[max_marks_col].values
+        threshold_pct = 0.60
+
         for idx, assessment in enumerate(assessments):
             if pd.isna(assessment):
                 continue
-            
             assessment_name = str(assessment).strip()
-            converted_col_name = f"{assessment_name} Converted"
-            
-            # Skip if assessment not in student data
-            if converted_col_name not in student:
+
+            # Try "Assessment Converted" first (301 sheets), then raw name (302 sheets)
+            student_mark = None
+            for key in [f"{assessment_name} Converted", assessment_name]:
+                if key in student:
+                    val = student[key]
+                    if val is not None and not (isinstance(val, float) and pd.isna(val)):
+                        student_mark = float(val)
+                        break
+
+            if student_mark is None:
                 continue
-            
-            student_mark = student[converted_col_name]
-            if pd.isna(student_mark):
+
+            if idx >= len(max_marks_vals) or pd.isna(max_marks_vals[idx]):
                 continue
-            
-            student_mark = float(student_mark)
-            
-            # Get max mark for this assessment
-            if idx < len(converted_marks_max):
-                max_mark = float(converted_marks_max[idx])
-                threshold = threshold_percentage * max_mark
-                
-                # If student mark is below threshold (75%), add the strategy
-                if student_mark < threshold:
-                    strategy = str(strategies[idx]).strip() if idx < len(strategies) else None
-                    if strategy and strategy.lower() != 'nan':
-                        recommendations.append(strategy)
-        
+            max_mark = float(max_marks_vals[idx])
+            if max_mark <= 0:
+                continue
+
+            if student_mark < threshold_pct * max_mark:
+                strategy = str(strategies[idx]).strip() if idx < len(strategies) else None
+                if strategy and strategy.lower() != 'nan':
+                    recommendations.append(strategy)
+
         return recommendations if recommendations else None
-    
+
     except Exception as e:
         print(f"Error in generate_ml_recommendations: {e}")
         return None
@@ -407,30 +584,31 @@ async def root():
 @app.post("/api/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
     """
-    Login endpoint - validates student using roll number from email
+    Login endpoint - validates student using roll number from email + class
     Expected email format: rollno@gmail.com
     """
     try:
         email = request.email.strip().lower()
+        class_name = (request.class_name or '').strip()
 
-        # Validate email format
         if "@" not in email:
             return JSONResponse(status_code=400, content={"error": "Invalid email format"})
 
-        # Extract roll number from email
         roll_no = extract_roll_no_from_email(email)
-        print(f"Incoming roll_no: {roll_no}")  # Log roll_no to console
+        print(f"Login attempt - roll_no: {roll_no}, class: {class_name}")
 
         if not roll_no:
             return JSONResponse(status_code=400, content={"error": "Invalid email format"})
 
-        # Validate student exists
-        validation = validate_student(roll_no)
+        if not class_name:
+            return JSONResponse(status_code=400, content={"error": "Please select your class"})
+
+        validation = validate_student(roll_no, class_name)
 
         if not validation["success"]:
             return JSONResponse(
                 status_code=401,
-                content={"error": f"User with Roll No {roll_no} not found in top 5"}
+                content={"error": f"Student {roll_no} not found in class {class_name}"}
             )
 
         student_data = validation["data"]
@@ -439,8 +617,9 @@ async def login(request: LoginRequest):
             success=True,
             message="Login successful",
             student_id=roll_no,
-            student_name=student_data.get("Student Name", "Student"),
-            token=f"token_{roll_no}_{email}"
+            student_name=student_data.get("Student Name", f"Student {roll_no}"),
+            student_class=class_name,
+            token=f"token_{roll_no}_{class_name.replace(' ', '_')}"
         )
 
     except HTTPException as e:
@@ -448,13 +627,20 @@ async def login(request: LoginRequest):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-@app.get("/api/student/{roll_no}/results")
-async def get_student_results_endpoint(roll_no: str):
-    """
-    Get student results and recommendations for all courses
-    """
+@app.get("/api/student/classes")
+async def get_student_classes():
+    """Return all available class names for student login dropdown"""
     try:
-        results = get_student_results(roll_no)
+        classes = get_all_classes()
+        return {"success": True, "classes": classes}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/student/{roll_no}/results")
+async def get_student_results_endpoint(roll_no: str, class_name: Optional[str] = None):
+    """Get student results and recommendations for relevant courses"""
+    try:
+        results = get_student_results(roll_no, class_name)
         
         if not results:
             raise HTTPException(
@@ -505,10 +691,10 @@ async def get_all_students_results():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/student/{roll_no}/recommendations")
-async def get_student_recommendations(roll_no: str):
-    """Get recommendations for student across all courses"""
+async def get_student_recommendations(roll_no: str, class_name: Optional[str] = None):
+    """Get recommendations for student across relevant courses"""
     try:
-        results = get_student_results(roll_no)
+        results = get_student_results(roll_no, class_name)
         if not results:
             raise HTTPException(status_code=404, detail=f"Student with Roll No {roll_no} not found")
 
@@ -742,7 +928,235 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "service": "Drop In API"}
 
-# ==================== ML Recommendation Endpoints ====================
+# ==================== Teacher Endpoints ====================
+
+TEACHER_EMAIL = "teacher123@gmail.com"
+
+class TeacherLoginRequest(BaseModel):
+    email: str
+    class_name: str
+
+class UpdateMarksRequest(BaseModel):
+    course: str
+    marks: Dict[str, float]
+
+class AddStudentRequest(BaseModel):
+    roll_no: str
+    class_name: str
+    courses: Dict[str, Dict[str, float]]  # {course_id: {mark_name: value}}
+
+@app.post("/api/teacher/login")
+async def teacher_login(request: TeacherLoginRequest):
+    """Teacher login - validates fixed teacher credentials"""
+    if request.email.strip().lower() != TEACHER_EMAIL:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Invalid teacher credentials"})
+    if not request.class_name:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Class name required"})
+    return {
+        "success": True,
+        "message": "Teacher login successful",
+        "class_name": request.class_name,
+        "token": f"teacher_token_{request.class_name}"
+    }
+
+@app.get("/api/teacher/classes")
+async def get_available_classes():
+    """Get all available class names from all sheets of Students.xlsx"""
+    try:
+        classes = get_all_classes()
+        return {"success": True, "classes": classes}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/teacher/class/{class_name}/students")
+async def get_class_students(class_name: str):
+    """Get all students in a class with their marks and performance (302 courses only)"""
+    try:
+        if not os.path.exists(STUDENTS_FILE):
+            raise HTTPException(status_code=404, detail="Students file not found")
+
+        dept = get_dept_from_class(class_name)
+        excel_file = pd.ExcelFile(STUDENTS_FILE, engine='openpyxl')
+        # Only show the 302 sheet for this department
+        target_sheets = [s for s in excel_file.sheet_names if dept.upper() in s.upper() and '302' in s]
+        students_map: Dict[str, dict] = {}
+
+        for sheet_name in target_sheets:
+            df = pd.read_excel(STUDENTS_FILE, sheet_name=sheet_name, engine='openpyxl')
+
+            # Find class column
+            class_col = None
+            for col in df.columns:
+                if 'class' in col.lower():
+                    class_col = col
+                    break
+            if not class_col:
+                continue
+
+            # Filter by class
+            class_df = df[df[class_col].astype(str).str.strip() == class_name.strip()]
+
+            for _, row in class_df.iterrows():
+                roll_no = None
+                for col in df.columns:
+                    if 'roll' in col.lower() or ('student' in col.lower() and 'id' in col.lower()):
+                        roll_no = str(row[col]).strip()
+                        break
+                if not roll_no or roll_no == 'nan':
+                    continue
+
+                marks: Dict[str, float] = {}
+                total_marks = 0.0
+                for col in df.columns:
+                    col_lower = col.lower()
+                    if any(t in col_lower for t in ['assignment', 'quiz', 'exam', 'lab', 'mark', 'score', 'test']):
+                        try:
+                            val = float(row.get(col, 0) or 0)
+                            marks[col] = val
+                            total_marks += val
+                        except (ValueError, TypeError):
+                            pass
+
+                if total_marks >= 200:
+                    perf = "Excellent"
+                elif total_marks >= 150:
+                    perf = "Very Good"
+                elif total_marks >= 100:
+                    perf = "Good"
+                elif total_marks >= 50:
+                    perf = "Satisfactory"
+                else:
+                    perf = "Needs Improvement"
+
+                if roll_no not in students_map:
+                    students_map[roll_no] = {
+                        "roll_no": roll_no,
+                        "masked_roll_no": mask_roll_no(roll_no),
+                        "class": class_name,
+                        "courses": {}
+                    }
+                students_map[roll_no]["courses"][sheet_name] = {
+                    "marks": marks,
+                    "total_marks": round(total_marks, 2),
+                    "performance_level": perf
+                }
+
+        students_list = sorted(students_map.values(), key=lambda x: x["roll_no"])
+        return {"success": True, "students": students_list, "class": class_name}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/teacher/student/{roll_no}/marks")
+async def update_student_marks(roll_no: str, request: UpdateMarksRequest):
+    """Update marks for a specific student in a course (writes back to Excel)"""
+    try:
+        if not os.path.exists(STUDENTS_FILE):
+            raise HTTPException(status_code=404, detail="Students file not found")
+
+        xl = pd.ExcelFile(STUDENTS_FILE, engine='openpyxl')
+        sheets_data: Dict[str, pd.DataFrame] = {}
+        for sheet in xl.sheet_names:
+            sheets_data[sheet] = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+
+        if request.course not in sheets_data:
+            raise HTTPException(status_code=404, detail=f"Course {request.course} not found")
+
+        df = sheets_data[request.course]
+
+        # Find student row index
+        student_idx = None
+        for col in df.columns:
+            if 'roll' in col.lower() or ('student' in col.lower() and 'id' in col.lower()):
+                mask = df[col].astype(str).str.strip() == str(roll_no).strip()
+                matching = df[mask]
+                if not matching.empty:
+                    student_idx = matching.index[0]
+                    break
+
+        if student_idx is None:
+            raise HTTPException(status_code=404, detail=f"Student {roll_no} not found in course {request.course}")
+
+        # Update the marks
+        for mark_name, mark_value in request.marks.items():
+            if mark_name in df.columns:
+                df.at[student_idx, mark_name] = mark_value
+        sheets_data[request.course] = df
+
+        # Write all sheets back
+        with pd.ExcelWriter(STUDENTS_FILE, engine='openpyxl') as writer:
+            for sheet, data in sheets_data.items():
+                data.to_excel(writer, sheet_name=sheet, index=False)
+
+        return {"success": True, "message": f"Marks updated for student {roll_no}"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/teacher/student/add")
+async def add_new_student(request: AddStudentRequest):
+    """Add a new student with marks to the relevant course sheets"""
+    try:
+        if not os.path.exists(STUDENTS_FILE):
+            raise HTTPException(status_code=404, detail="Students file not found")
+
+        roll_no = str(request.roll_no).strip()
+        class_name = request.class_name.strip()
+        dept = get_dept_from_class(class_name)
+
+        # Load all sheets
+        xl = pd.ExcelFile(STUDENTS_FILE, engine='openpyxl')
+        sheets_data: Dict[str, pd.DataFrame] = {}
+        for sheet in xl.sheet_names:
+            sheets_data[sheet] = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+
+        # Check roll_no does not already exist in the dept sheets
+        dept_sheets = [s for s in xl.sheet_names if dept.upper() in s.upper()]
+        for sheet in dept_sheets:
+            df_check = sheets_data[sheet]
+            for col in df_check.columns:
+                if 'roll' in col.lower() or ('student' in col.lower() and 'id' in col.lower()):
+                    if (df_check[col].astype(str).str.strip() == roll_no).any():
+                        raise HTTPException(
+                            status_code=409,
+                            detail=f"Roll No {roll_no} already exists in {class_name}"
+                        )
+                    break
+
+        # Add student row to the 302 sheet only for this department
+        dept_302_sheets = [s for s in xl.sheet_names if dept.upper() in s.upper() and '302' in s]
+        for course_id, marks in request.courses.items():
+            if course_id not in sheets_data or course_id not in dept_302_sheets:
+                continue
+            df = sheets_data[course_id]
+            new_row: Dict[str, object] = {}
+            # Fill Student Id and Class
+            for col in df.columns:
+                if 'roll' in col.lower() or ('student' in col.lower() and 'id' in col.lower()):
+                    new_row[col] = roll_no
+                elif 'class' in col.lower():
+                    new_row[col] = class_name
+                else:
+                    new_row[col] = marks.get(col, 0)
+            sheets_data[course_id] = pd.concat(
+                [df, pd.DataFrame([new_row])], ignore_index=True
+            )
+
+        # Write all sheets back
+        with pd.ExcelWriter(STUDENTS_FILE, engine='openpyxl') as writer:
+            for sheet, data in sheets_data.items():
+                data.to_excel(writer, sheet_name=sheet, index=False)
+
+        return {"success": True, "message": f"Student {roll_no} added to class {class_name}"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/recommendations/student")
 async def get_student_recommendation(
@@ -1118,9 +1532,8 @@ def generate_counselor_response(message: str, emotion: Optional[str], student_co
     
     return "\n\n".join(response_parts), suggested_actions
 
-# Generate or load encryption key
+# Generate or load encryption key (kept for any future use, not applied to chat)
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", Fernet.generate_key().decode())
-fernet = Fernet(ENCRYPTION_KEY)
 
 # Add Groq API key to environment variables
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
@@ -1158,12 +1571,9 @@ async def chat(request: ChatRequest):
         
         # Generate encouragement
         encouragement = get_encouragement(student_id, emotion)
-        
-        # Encrypt the response
-        encrypted_response = fernet.encrypt(response_text.encode()).decode()
-        
+
         return ChatResponse(
-            response=encrypted_response,
+            response=response_text,
             detected_emotion=emotion,
             encouragement=encouragement,
             suggested_actions=suggested_actions

@@ -30,7 +30,7 @@ interface CourseResult {
 }
 
 export default function ReportPage() {
-  const { studentId, studentName } = useStudent()
+  const { studentId, studentName, studentClass } = useStudent()
   const navigate = useNavigate()
   const reportRef = useRef<HTMLDivElement>(null)
   
@@ -42,13 +42,13 @@ export default function ReportPage() {
 
   useEffect(() => {
     if (!studentId) {
-      navigate('/login')
+      navigate('/role')
       return
     }
 
     const fetchResults = async () => {
       try {
-        const response = await studentAPI.getResults(studentId)
+        const response = await studentAPI.getResults(studentId, studentClass ?? undefined)
         if (response.data.data) {
           const data = response.data.data
           setResults(data)
@@ -63,7 +63,7 @@ export default function ReportPage() {
     }
 
     fetchResults()
-  }, [studentId, navigate])
+  }, [studentId, studentClass, navigate])
 
   if (loading) {
     return (

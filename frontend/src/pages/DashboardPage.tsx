@@ -21,22 +21,22 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const navigate = useNavigate()
-  const { studentId, studentName, logout } = useStudent()
+  const { studentId, studentName, studentClass, logout } = useStudent()
 
   useEffect(() => {
     if (!studentId) {
-      navigate('/login')
+      navigate('/role')
       return
     }
 
     const fetchResults = async () => {
       try {
-        const response = await studentAPI.getResults(studentId)
+        const response = await studentAPI.getResults(studentId, studentClass ?? undefined)
         if (response.data.data) {
           const data = response.data.data
 
           // If recommendations are missing or empty, pull explicit endpoint
-          const recResponse = await studentAPI.getRecommendations(studentId)
+          const recResponse = await studentAPI.getRecommendations(studentId, studentClass ?? undefined)
           if (recResponse.data?.recommendations) {
             for (const [courseId, recList] of Object.entries(recResponse.data.recommendations)) {
               if (data[courseId]) {
@@ -57,11 +57,11 @@ export default function DashboardPage() {
     }
 
     fetchResults()
-  }, [studentId, navigate])
+  }, [studentId, studentClass, navigate])
 
   const handleLogout = () => {
     logout()
-    navigate('/login')
+    navigate('/role')
   }
 
   if (loading) {
