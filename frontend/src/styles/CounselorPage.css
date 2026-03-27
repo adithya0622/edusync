@@ -180,8 +180,14 @@
 
 .message-bubble.user {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  color: #ffffff !important;
   border-bottom-right-radius: 4px;
+}
+
+.message-bubble.user .message-content,
+.message-bubble.user .message-content p,
+.message-bubble.user .message-content strong {
+  color: #ffffff !important;
 }
 
 .message-content p {

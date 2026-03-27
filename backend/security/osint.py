@@ -186,6 +186,27 @@ class OSINTThreatScanner:
             "recommendation": "Rotate all exposed credentials immediately" if findings else "No secrets detected",
         }
 
+    def hash_roll_number(self, roll_no: str) -> str:
+        """Hash the roll number using SHA-256."""
+        return hashlib.sha256(roll_no.encode('utf-8')).hexdigest()
+
+    def check_roll_number_breach(self, roll_no: str) -> Dict:
+        """Check if the hashed roll number has been exposed in data breaches."""
+        hashed_roll_no = self.hash_roll_number(roll_no)
+        # Simulate a breach check (replace with actual logic if needed)
+        if hashed_roll_no in self.threat_cache:
+            return {
+                "breached": True,
+                "threat_level": "HIGH",
+                "recommendation": "Change associated credentials immediately."
+            }
+        else:
+            return {
+                "breached": False,
+                "threat_level": "GREEN",
+                "recommendation": "No breaches detected."
+            }
+
 
 def _get_recommendation(threat_score: int) -> str:
     """Get security recommendation based on threat score"""

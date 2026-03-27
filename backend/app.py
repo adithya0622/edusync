@@ -1107,12 +1107,6 @@ def generate_counselor_response(message: str, emotion: Optional[str], student_co
     # Default fallback
     if not response_parts:
         defaults = [
-            "Just chat with me about anything — I'm here to help you succeed!")
-        academic_handled = True
-    
-    # Default fallback
-    if not response_parts:
-        defaults = [
             "I'm here to help you with anything academic or personal. You can ask me about your marks, study strategies, exam prep, or just talk about how you're feeling.",
             "Tell me more! I can help with study tips, performance analysis, exam preparation, or just provide support. What's on your mind?",
             "I'm your academic counselor — feel free to ask about study methods, your performance, exam strategies, or anything that's on your mind!"

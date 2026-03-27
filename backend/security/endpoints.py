@@ -346,3 +346,18 @@ async def check_password_breach_full(password: str):
         "recommendation": result.get("recommendation", ""),
         "timestamp": datetime.utcnow().isoformat()
     }
+
+@router.post("/check-roll-number")
+async def check_roll_number(request: ThreatAssessmentRequest):
+    """
+    Check if the roll number (hashed) has been exposed in data breaches.
+    """
+    if not request.student_id:
+        raise HTTPException(status_code=400, detail="Student ID (roll number) is required.")
+
+    result = osint_scanner.check_roll_number_breach(request.student_id)
+    return {
+        "assessment_type": "ROLL_NUMBER_BREACH_CHECK",
+        "timestamp": datetime.utcnow().isoformat(),
+        "result": result
+    }
