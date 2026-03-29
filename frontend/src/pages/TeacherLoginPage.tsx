@@ -15,9 +15,15 @@ export default function TeacherLoginPage() {
   useEffect(() => {
     teacherAPI.getClasses()
       .then(res => {
-        if (res.data.success) setClasses(res.data.classes)
+        if (res.data.success) {
+          setClasses(res.data.classes)
+        } else {
+          setError('Failed to load class names. Please try again later.')
+        }
       })
-      .catch(() => setClasses(['CSE A', 'CSE B']))
+      .catch(() => {
+        setError('Unable to fetch class names. Please check your connection.')
+      })
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {

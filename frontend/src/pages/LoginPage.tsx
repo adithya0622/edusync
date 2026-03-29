@@ -16,8 +16,16 @@ export default function LoginPage() {
 
   useEffect(() => {
     studentAPI.getClasses()
-      .then(res => { if (res.data.success) setClasses(res.data.classes) })
-      .catch(() => {})
+      .then(res => {
+        if (res.data.success) {
+          setClasses(res.data.classes)
+        } else {
+          setError('Failed to load class names. Please try again later.')
+        }
+      })
+      .catch(() => {
+        setError('Unable to fetch class names. Please check your connection.')
+      })
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
