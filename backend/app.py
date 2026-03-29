@@ -53,7 +53,7 @@ app.add_middleware(
 )
 
 # Constants
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STUDENTS_FILE = os.path.join(BASE_DIR, "Students.xlsx")
 COURSES_FILE = os.path.join(BASE_DIR, "Courses.xlsx")
 
