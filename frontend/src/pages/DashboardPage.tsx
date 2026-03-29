@@ -204,10 +204,10 @@ export default function DashboardPage() {
                           <div className="mark-item-left" style={{display:'flex', flexDirection:'column', gap:'0.15rem', flex:1, minWidth:0}}>
                             <span className="assessment-name" style={{fontSize:'0.9rem', color:'#374151', fontWeight:600}}>{assessment}</span>
                             {curriculum && (
-                              <span className="mark-curriculum" style={{fontSize:'0.65rem', color:'#9ca3af', fontStyle:'italic', lineHeight:1.25, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const}}>📚 {curriculum}</span>
+                              <span className="mark-curriculum" style={{fontSize:'0.8rem', color:'#6b7280', fontStyle:'italic', lineHeight:1.4, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const}}>📚 {curriculum}</span>
                             )}
                           </div>
-                          <span className="mark-value" style={{fontSize:'1.5rem', fontWeight:700, color:'#667eea', flexShrink:0, minWidth:40, textAlign:'right'}}>{marks}</span>
+                          <span className="mark-value" style={{fontSize:'1.5rem', fontWeight:700, color:'white', flexShrink:0, minWidth:40, textAlign:'right', background:'#667eea', borderRadius:'8px', padding:'0.25rem 0.6rem'}}>{marks}</span>
                         </div>
                       )
                     })}
