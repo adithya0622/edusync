@@ -13,6 +13,7 @@ interface CourseResult {
   total_marks: number
   performance_level: string
   recommendations: string[]
+  curriculum_map?: Record<string, string>
 }
 
 export default function DashboardPage() {
@@ -108,22 +109,24 @@ export default function DashboardPage() {
             <span className="user-name">{studentName}</span>
             <span className="user-id">Roll No: {studentId}</span>
           </div>
-          <button onClick={() => navigate('/recommendations')} className="btn-recommendations">
-            <TrendingUp size={20} />
-            AI Recommendations
-          </button>
-          <button onClick={() => navigate('/report')} className="btn-report">
-            <BarChart3 size={20} />
-            Report
-          </button>
-          <button onClick={() => navigate('/counselor')} className="btn-counselor">
-            <MessageCircle size={20} />
-            AI Counselor
-          </button>
-          <button onClick={handleLogout} className="btn-logout">
-            <LogOut size={20} />
-            Logout
-          </button>
+          <div className="header-actions">
+            <button onClick={() => navigate('/recommendations')} className="btn-recommendations">
+              <TrendingUp size={18} />
+              <span>AI Recommendations</span>
+            </button>
+            <button onClick={() => navigate('/report')} className="btn-report">
+              <BarChart3 size={18} />
+              <span>Report</span>
+            </button>
+            <button onClick={() => navigate('/counselor')} className="btn-counselor">
+              <MessageCircle size={18} />
+              <span>AI Counselor</span>
+            </button>
+            <button onClick={handleLogout} className="btn-logout">
+              <LogOut size={18} />
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -194,12 +197,20 @@ export default function DashboardPage() {
                 <div className="marks-grid">
                   {Object.entries(currentResult.marks)
                     .filter(([assessment]) => !assessment.includes('Converted'))
-                    .map(([assessment, marks]) => (
-                      <div key={assessment} className="mark-item">
-                        <span className="mark-label">{assessment}</span>
-                        <span className="mark-value">{marks}</span>
-                      </div>
-                    ))}
+                    .map(([assessment, marks]) => {
+                      const curriculum = currentResult.curriculum_map?.[assessment]
+                      return (
+                        <div key={assessment} className="mark-item">
+                          <div className="mark-item-left">
+                            <span className="assessment-name">{assessment}</span>
+                            {curriculum && (
+                              <span className="mark-curriculum">📚 {curriculum}</span>
+                            )}
+                          </div>
+                          <span className="mark-value">{marks}</span>
+                        </div>
+                      )
+                    })}
                 </div>
               </div>
 

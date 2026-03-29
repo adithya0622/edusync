@@ -266,9 +266,11 @@ def get_student_results(roll_no: str, class_name: str = None) -> dict:
 
                 # ── Online resources for weak assessments ──────────────────
                 online_resources = []
+                course_curriculum_map = {}
                 try:
                     course_301_id = sheet_name.replace("302", "301")
-                    curriculum_map = get_curriculum_map(course_301_id)
+                    course_curriculum_map = get_curriculum_map(course_301_id)
+                    curriculum_map = course_curriculum_map
                     if curriculum_map:
                         df_c = pd.read_excel(COURSES_FILE, sheet_name=sheet_name, engine='openpyxl')
                         if 'Assessments' in df_c.columns:
@@ -319,7 +321,8 @@ def get_student_results(roll_no: str, class_name: str = None) -> dict:
                     "total_marks": round(total_marks, 2),
                     "performance_level": performance_level,
                     "recommendations": recommendations,
-                    "online_resources": online_resources
+                    "online_resources": online_resources,
+                    "curriculum_map": course_curriculum_map
                 }
         
         if not found_student:
