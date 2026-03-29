@@ -108,11 +108,44 @@
 }
 
 @media (max-width: 600px) {
+  .role-container {
+    padding: 2rem 1.25rem;
+    height: auto;
+    min-height: 100dvh;
+    justify-content: center;
+  }
+
+  .role-header {
+    margin-bottom: 2rem;
+  }
+
+  .role-header h1 {
+    font-size: 2rem;
+  }
+
+  .role-header p {
+    font-size: 0.95rem;
+  }
+
+  .role-logo {
+    width: 72px;
+    height: 72px;
+  }
+
   .role-cards {
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 1rem;
+    width: 100%;
+    max-width: 320px;
   }
+
   .role-card {
-    width: 280px;
+    width: 100%;
+    padding: 1.75rem 1.5rem;
+    border-radius: 16px;
+  }
+
+  .role-card h2 {
+    font-size: 1.35rem;
   }
 }

@@ -164,21 +164,53 @@
 
 /* Responsive */
 @media (max-width: 600px) {
+  .login-container {
+    height: auto;
+    min-height: 100dvh;
+    overflow-y: auto;
+    padding: 1.5rem 1rem;
+    align-items: flex-start;
+    padding-top: 2rem;
+  }
+
   .login-card {
-    padding: 2rem 1.5rem;
+    padding: 1.75rem 1.25rem;
+    border-radius: 16px;
+    max-width: 100%;
+    width: 100%;
+    margin: 0 auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  }
+
+  .login-header {
+    margin-bottom: 1.5rem;
   }
 
   .login-header h1 {
-    font-size: 1.75rem;
+    font-size: 1.6rem;
   }
 
   .logo-circle {
-    width: 70px;
-    height: 70px;
+    width: 65px;
+    height: 65px;
+    margin-bottom: 1rem;
   }
 
-  .logo-text {
-    font-size: 1.75rem;
+  .subtitle {
+    font-size: 0.88rem;
+  }
+
+  .form-group {
+    margin-bottom: 1.25rem;
+  }
+
+  .login-button {
+    padding: 1rem;
+    font-size: 1rem;
+  }
+
+  .form-input {
+    font-size: 16px !important;
   }
 }
 

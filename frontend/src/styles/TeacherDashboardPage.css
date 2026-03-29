@@ -544,3 +544,70 @@
 .btn-confirm-add:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* Toggle roll number visibility */.btn-toggle-rolls {  display: flex;  align-items: center;  gap: 0.4rem;  padding: 0.5rem 0.9rem;  background: white;  color: #667eea;  border: 1.5px solid #667eea;  border-radius: 8px;  font-size: 0.85rem;  font-weight: 600;  cursor: pointer;  transition: background 0.2s, color 0.2s;}.btn-toggle-rolls:hover { background: #667eea; color: white; }
+
+/* ═══ MOBILE RESPONSIVE ═══ */
+@media (max-width: 768px) {
+  .teacher-dashboard {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .teacher-header {
+    padding: 0.85rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .header-title h1 { font-size: 1rem; }
+  .header-title p { font-size: 0.72rem; }
+  .logo-mini { width: 36px; height: 36px; }
+
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .student-count { font-size: 0.8rem; padding: 0.35rem 0.7rem; }
+
+  .btn-logout {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.82rem;
+  }
+
+  .teacher-content {
+    padding: 0.75rem;
+    overflow: visible;
+    flex: none;
+  }
+
+  .course-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+  }
+
+  .course-tab {
+    flex-shrink: 0;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.82rem;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 10px;
+  }
+
+  .students-table { font-size: 0.8rem; min-width: 700px; }
+  .students-table th { padding: 0.65rem 0.6rem; font-size: 0.75rem; }
+  .students-table td { padding: 0.55rem 0.6rem; }
+
+  .add-panel { width: 100vw; }
+
+  .btn-add-student {
+    padding: 0.55rem 1rem;
+    font-size: 0.85rem;
+  }
+}

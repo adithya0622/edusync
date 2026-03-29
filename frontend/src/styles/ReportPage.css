@@ -709,3 +709,45 @@
     display: none;
   }
 }
+
+/* --- MOBILE RESPONSIVE --- */
+@media (max-width: 768px) {
+  .report-header {
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .report-header h1 { font-size: 1.3rem; }
+
+  .header-left { gap: 0.6rem; }
+  .logo-mini { width: 36px; height: 36px; }
+
+  .btn-back, .btn-export {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+
+  .report-content {
+    padding: 1rem;
+  }
+
+  .charts-section { grid-template-columns: 1fr; }
+
+  .table-header, .table-row {
+    grid-template-columns: 2fr 1fr 1fr;
+    font-size: 0.8rem;
+    padding: 8px 10px;
+  }
+
+  .summary-cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .summary-card { padding: 1rem; }
+}
+
+@media (max-width: 400px) {
+  .summary-cards { grid-template-columns: 1fr; }
+}

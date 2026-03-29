@@ -287,3 +287,10 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* --- MOBILE RESPONSIVE --- */
+@media (max-width: 768px) {
+  .security-metrics { grid-template-columns: 1fr; }
+  .zero-knowledge-section { padding: 1.25rem; }
+  .qr-grid { width: 160px; height: 160px; }
+}
