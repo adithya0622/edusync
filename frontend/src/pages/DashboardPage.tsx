@@ -194,20 +194,20 @@ export default function DashboardPage() {
               {/* Marks Breakdown */}
               <div className="marks-breakdown">
                 <h3>Marks Breakdown</h3>
-                <div className="marks-grid">
+                <div className="marks-grid" style={{display:'flex', flexDirection:'column', gap:'0.6rem'}}>
                   {Object.entries(currentResult.marks)
                     .filter(([assessment]) => !assessment.includes('Converted'))
                     .map(([assessment, marks]) => {
                       const curriculum = currentResult.curriculum_map?.[assessment]
                       return (
-                        <div key={assessment} className="mark-item">
-                          <div className="mark-item-left">
-                            <span className="assessment-name">{assessment}</span>
+                        <div key={assessment} className="mark-item" style={{display:'flex', flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:'0.85rem 1.25rem', background:'linear-gradient(135deg,#f3f4f6 0%,#e5e7eb 100%)', borderRadius:'8px', borderLeft:'4px solid #667eea', gap:'1rem'}}>
+                          <div className="mark-item-left" style={{display:'flex', flexDirection:'column', gap:'0.15rem', flex:1, minWidth:0}}>
+                            <span className="assessment-name" style={{fontSize:'0.9rem', color:'#374151', fontWeight:600}}>{assessment}</span>
                             {curriculum && (
-                              <span className="mark-curriculum">📚 {curriculum}</span>
+                              <span className="mark-curriculum" style={{fontSize:'0.65rem', color:'#9ca3af', fontStyle:'italic', lineHeight:1.25, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const}}>📚 {curriculum}</span>
                             )}
                           </div>
-                          <span className="mark-value">{marks}</span>
+                          <span className="mark-value" style={{fontSize:'1.5rem', fontWeight:700, color:'#667eea', flexShrink:0, minWidth:40, textAlign:'right'}}>{marks}</span>
                         </div>
                       )
                     })}
