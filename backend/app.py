@@ -268,8 +268,11 @@ def get_student_results(roll_no: str, class_name: str = None) -> dict:
                 online_resources = []
                 course_curriculum_map = {}
                 try:
-                    course_301_id = sheet_name.replace("302", "301")
-                    course_curriculum_map = get_curriculum_map(course_301_id)
+                    # Use the sheet's own curriculum; fall back to the 301 sibling only if missing
+                    course_curriculum_map = get_curriculum_map(sheet_name)
+                    if not course_curriculum_map:
+                        course_301_id = sheet_name.replace("302", "301")
+                        course_curriculum_map = get_curriculum_map(course_301_id)
                     curriculum_map = course_curriculum_map
                     if curriculum_map:
                         df_c = pd.read_excel(COURSES_FILE, sheet_name=sheet_name, engine='openpyxl')
