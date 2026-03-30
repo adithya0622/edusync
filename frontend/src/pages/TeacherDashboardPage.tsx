@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { teacherAPI } from '../api/api'
-import { LogOut, Edit2, Save, X, Download, BookOpen, UserPlus, Eye, EyeOff } from 'lucide-react'
+import { LogOut, Edit2, Save, X, Download, BookOpen, UserPlus, Eye, EyeOff, Trash2 } from 'lucide-react'
 import html2pdf from 'html2pdf.js'
 import '../styles/TeacherDashboardPage.css'
 
@@ -42,6 +42,7 @@ export default function TeacherDashboardPage() {
   const [addError, setAddError] = useState('')
   const [addSaving, setAddSaving] = useState(false)
   const [showRollNos, setShowRollNos] = useState(false)
+  const [deletingRoll, setDeletingRoll] = useState<string | null>(null)
 
   const navigate = useNavigate()
   const teacherClass = localStorage.getItem('teacherClass') || ''
@@ -70,6 +71,20 @@ export default function TeacherDashboardPage() {
     localStorage.removeItem('teacherLoggedIn')
     localStorage.removeItem('teacherClass')
     navigate('/role')
+  }
+
+  const handleDelete = async (student: Student) => {
+    const displayId = showRollNos ? student.roll_no : student.masked_roll_no
+    if (!window.confirm(`Remove student ${displayId} from ${teacherClass}? This cannot be undone.`)) return
+    setDeletingRoll(student.roll_no)
+    try {
+      await teacherAPI.deleteStudent(student.roll_no, teacherClass)
+      setStudents(prev => prev.filter(s => s.roll_no !== student.roll_no))
+    } catch (err: any) {
+      alert('Failed to remove student: ' + (err.response?.data?.detail || 'Unknown error'))
+    } finally {
+      setDeletingRoll(null)
+    }
   }
 
   const handleEdit = (student: Student) => {
@@ -319,6 +334,14 @@ export default function TeacherDashboardPage() {
                                 <button onClick={() => handleEdit(student)} className="btn-edit"><Edit2 size={15} /> Edit</button>
                                 <button onClick={() => handleDownload(student)} disabled={downloading === student.roll_no} className="btn-download">
                                   <Download size={15} /> {downloading === student.roll_no ? '...' : 'Report'}
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(student)}
+                                  disabled={deletingRoll === student.roll_no}
+                                  className="btn-delete"
+                                  title="Remove student"
+                                >
+                                  <Trash2 size={15} /> {deletingRoll === student.roll_no ? '...' : 'Remove'}
                                 </button>
                               </div>
                             )}

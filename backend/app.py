@@ -1164,6 +1164,92 @@ async def add_new_student(request: AddStudentRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/api/teacher/student/{roll_no}")
+async def delete_student(roll_no: str, class_name: str):
+    """Remove a student from all course sheets for their department"""
+    try:
+        if not os.path.exists(STUDENTS_FILE):
+            raise HTTPException(status_code=404, detail="Students file not found")
+
+        roll_no = str(roll_no).strip()
+        dept = get_dept_from_class(class_name)
+
+        xl = pd.ExcelFile(STUDENTS_FILE, engine='openpyxl')
+        sheets_data: Dict[str, pd.DataFrame] = {}
+        for sheet in xl.sheet_names:
+            sheets_data[sheet] = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+
+        dept_sheets = [s for s in xl.sheet_names if dept.upper() in s.upper()]
+        found = False
+        for sheet in dept_sheets:
+            df = sheets_data[sheet]
+            for col in df.columns:
+                if 'roll' in col.lower() or ('student' in col.lower() and 'id' in col.lower()):
+                    mask = df[col].astype(str).str.strip() == roll_no
+                    if mask.any():
+                        found = True
+                        sheets_data[sheet] = df[~mask].reset_index(drop=True)
+                    break
+
+        if not found:
+            raise HTTPException(status_code=404, detail=f"Student {roll_no} not found in class {class_name}")
+
+        with pd.ExcelWriter(STUDENTS_FILE, engine='openpyxl') as writer:
+            for sheet, data in sheets_data.items():
+                data.to_excel(writer, sheet_name=sheet, index=False)
+
+        return {"success": True, "message": f"Student {roll_no} removed from class {class_name}"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class UpdateCurriculumRequest(BaseModel):
+    assessment: str
+    curriculum: str
+
+
+@app.put("/api/curriculum/{sheet_id}")
+async def update_curriculum(sheet_id: str, request: UpdateCurriculumRequest):
+    """Update the curriculum text for a specific assessment in a Courses sheet"""
+    try:
+        if not os.path.exists(COURSES_FILE):
+            raise HTTPException(status_code=404, detail="Courses file not found")
+
+        xl = pd.ExcelFile(COURSES_FILE, engine='openpyxl')
+        sheets_data: Dict[str, pd.DataFrame] = {}
+        for sheet in xl.sheet_names:
+            sheets_data[sheet] = pd.read_excel(COURSES_FILE, sheet_name=sheet, engine='openpyxl')
+
+        if sheet_id not in sheets_data:
+            raise HTTPException(status_code=404, detail=f"Course sheet {sheet_id} not found")
+
+        df = sheets_data[sheet_id]
+        if 'Assessments' not in df.columns or 'Curriculum' not in df.columns:
+            raise HTTPException(status_code=400, detail="Courses sheet missing Assessments or Curriculum column")
+
+        assessment = str(request.assessment).strip()
+        mask = df['Assessments'].astype(str).str.strip() == assessment
+        if not mask.any():
+            raise HTTPException(status_code=404, detail=f"Assessment '{assessment}' not found in {sheet_id}")
+
+        df.loc[mask, 'Curriculum'] = request.curriculum.strip()
+        sheets_data[sheet_id] = df
+
+        with pd.ExcelWriter(COURSES_FILE, engine='openpyxl') as writer:
+            for sheet, data in sheets_data.items():
+                data.to_excel(writer, sheet_name=sheet, index=False)
+
+        return {"success": True, "message": f"Curriculum updated for '{assessment}' in {sheet_id}"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/recommendations/student")
 async def get_student_recommendation(
     request: StudentRecommendationRequest,

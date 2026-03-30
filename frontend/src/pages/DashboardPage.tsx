@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { studentAPI } from '../api/api'
+import { studentAPI, curriculumAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { LogOut, TrendingUp, BookOpen, Award, Lightbulb, CheckCircle, BarChart3, MessageCircle } from 'lucide-react'
+import { LogOut, TrendingUp, BookOpen, Award, Lightbulb, CheckCircle, BarChart3, MessageCircle, Pencil, Save, X } from 'lucide-react'
 import '../styles/DashboardPage.css'
 
 interface CourseResult {
@@ -21,6 +21,9 @@ export default function DashboardPage() {
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [editingCurriculum, setEditingCurriculum] = useState<string | null>(null)
+  const [curriculumDraft, setCurriculumDraft] = useState('')
+  const [savingCurriculum, setSavingCurriculum] = useState(false)
   const navigate = useNavigate()
   const { studentId, studentName, studentClass, logout } = useStudent()
 
@@ -63,6 +66,31 @@ export default function DashboardPage() {
   const handleLogout = () => {
     logout()
     navigate('/role')
+  }
+
+  const handleSaveCurriculum = async (assessment: string) => {
+    if (!selectedCourse) return
+    setSavingCurriculum(true)
+    try {
+      await curriculumAPI.update(selectedCourse, assessment, curriculumDraft)
+      setResults(prev => {
+        if (!prev || !selectedCourse) return prev
+        const updated = { ...prev }
+        updated[selectedCourse] = {
+          ...updated[selectedCourse],
+          curriculum_map: {
+            ...updated[selectedCourse].curriculum_map,
+            [assessment]: curriculumDraft,
+          },
+        }
+        return updated
+      })
+      setEditingCurriculum(null)
+    } catch (err: any) {
+      alert('Failed to save curriculum: ' + (err.response?.data?.detail || 'Unknown error'))
+    } finally {
+      setSavingCurriculum(false)
+    }
   }
 
   if (loading) {
@@ -200,11 +228,47 @@ export default function DashboardPage() {
                     .map(([assessment, marks]) => {
                       const curriculum = currentResult.curriculum_map?.[assessment]
                       return (
-                        <div key={assessment} className="mark-item" style={{display:'flex', flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:'0.85rem 1.25rem', background:'linear-gradient(135deg,#f3f4f6 0%,#e5e7eb 100%)', borderRadius:'8px', borderLeft:'4px solid #667eea', gap:'1rem'}}>
+                        <div key={assessment} className="mark-item" style={{display:'flex', flexDirection:'row', alignItems:'flex-start', justifyContent:'space-between', padding:'0.85rem 1.25rem', background:'linear-gradient(135deg,#f3f4f6 0%,#e5e7eb 100%)', borderRadius:'8px', borderLeft:'4px solid #667eea', gap:'1rem'}}>
                           <div className="mark-item-left" style={{display:'flex', flexDirection:'column', gap:'0.15rem', flex:1, minWidth:0}}>
                             <span className="assessment-name" style={{fontSize:'0.9rem', color:'#374151', fontWeight:600}}>{assessment}</span>
-                            {curriculum && (
-                              <span className="mark-curriculum" style={{fontSize:'0.8rem', color:'#6b7280', fontStyle:'italic', lineHeight:1.4, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const}}>📚 {curriculum}</span>
+                            {editingCurriculum === assessment ? (
+                              <div style={{display:'flex', flexDirection:'column', gap:'0.4rem', marginTop:'0.25rem'}}>
+                                <textarea
+                                  value={curriculumDraft}
+                                  onChange={e => setCurriculumDraft(e.target.value)}
+                                  rows={2}
+                                  style={{fontSize:'0.8rem', padding:'0.4rem 0.6rem', borderRadius:'6px', border:'1.5px solid #667eea', resize:'vertical', fontFamily:'inherit', outline:'none'}}
+                                  autoFocus
+                                />
+                                <div style={{display:'flex', gap:'0.4rem'}}>
+                                  <button
+                                    onClick={() => handleSaveCurriculum(assessment)}
+                                    disabled={savingCurriculum}
+                                    style={{display:'flex', alignItems:'center', gap:'0.3rem', padding:'0.3rem 0.7rem', background:'#667eea', color:'white', border:'none', borderRadius:'6px', fontSize:'0.78rem', fontWeight:600, cursor:'pointer'}}
+                                  >
+                                    <Save size={13} /> {savingCurriculum ? 'Saving...' : 'Save'}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingCurriculum(null)}
+                                    style={{display:'flex', alignItems:'center', gap:'0.3rem', padding:'0.3rem 0.7rem', background:'#f3f4f6', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', fontSize:'0.78rem', fontWeight:600, cursor:'pointer'}}
+                                  >
+                                    <X size={13} /> Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{display:'flex', alignItems:'center', gap:'0.4rem'}}>
+                                {curriculum && (
+                                  <span className="mark-curriculum" style={{fontSize:'0.8rem', color:'#6b7280', fontStyle:'italic', lineHeight:1.4, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const}}>📚 {curriculum}</span>
+                                )}
+                                <button
+                                  onClick={() => { setEditingCurriculum(assessment); setCurriculumDraft(curriculum || '') }}
+                                  title="Edit curriculum"
+                                  style={{flexShrink:0, background:'none', border:'none', cursor:'pointer', color:'#9ca3af', padding:'0.15rem', borderRadius:'4px', display:'flex', alignItems:'center'}}
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                              </div>
                             )}
                           </div>
                           <span className="mark-value" style={{fontSize:'1.5rem', fontWeight:700, color:'white', flexShrink:0, minWidth:40, textAlign:'right', background:'#667eea', borderRadius:'8px', padding:'0.25rem 0.6rem'}}>{marks}</span>

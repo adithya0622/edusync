@@ -97,6 +97,14 @@ export const teacherAPI = {
 
   addStudent: (roll_no: string, class_name: string, courses: Record<string, Record<string, number>>) =>
     api.post('/api/teacher/student/add', { roll_no, class_name, courses }),
+
+  deleteStudent: (roll_no: string, class_name: string) =>
+    api.delete(`/api/teacher/student/${encodeURIComponent(roll_no)}`, { params: { class_name } }),
+}
+
+export const curriculumAPI = {
+  update: (sheet_id: string, assessment: string, curriculum: string) =>
+    api.put(`/api/curriculum/${encodeURIComponent(sheet_id)}`, { assessment, curriculum }),
 }
 
 export default api
