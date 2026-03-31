@@ -362,7 +362,7 @@ export default function TeacherDashboardPage() {
                   <div style={{display:'flex',flexDirection:'column',gap:'0.4rem'}}>
                     {Object.entries(data.assessment_stats).map(([col, stat]) => {
                       const pct = Math.min(100, stat.max > 0 ? (stat.avg / stat.max) * 100 : 50)
-                      const barColor = pct >= 75 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444'
+                      const barColor = pct >= 60 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444'
                       return (
                         <div key={col} style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
                           <span style={{fontSize:'0.78rem',color:'var(--text-secondary)',width:180,flexShrink:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{col}</span>

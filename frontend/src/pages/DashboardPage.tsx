@@ -43,8 +43,8 @@ function updateStreak(): number {
 function heatColor(value: number, max: number | undefined): { bg: string; border: string } {
   if (!max || max <= 0) return { bg: '#667eea', border: '#4f46e5' }
   const pct = value / max
-  if (pct >= 0.75) return { bg: '#22c55e', border: '#16a34a' }   // green – strong
-  if (pct >= 0.50) return { bg: '#f59e0b', border: '#d97706' }   // amber – acceptable
+  if (pct >= 0.60) return { bg: '#22c55e', border: '#16a34a' }   // green – strong
+  if (pct >= 0.40) return { bg: '#f59e0b', border: '#d97706' }   // amber – acceptable
   return { bg: '#ef4444', border: '#dc2626' }                     // red – needs work
 }
 
@@ -144,7 +144,7 @@ export default function DashboardPage() {
       for (const [assessment, mark] of Object.entries(courseData.marks)) {
         if (assessment.includes('Converted')) continue
         const max = maxMap[assessment]
-        if (max && max > 0 && mark / max < 0.75) {
+        if (max && max > 0 && mark / max < 0.60) {
           weakAreas.push({ course: courseId, assessment, mark, max: Math.round(max), curriculum: currMap[assessment] || '' })
         }
       }
@@ -154,7 +154,7 @@ export default function DashboardPage() {
       const color = pct >= 50 ? '#f59e0b' : '#ef4444'
       return `<tr><td style="padding:8px 12px;border:1px solid #e5e7eb;">${w.course}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;">${w.assessment}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:center;color:${color};font-weight:700;">${w.mark}/${w.max} (${pct}%)</td><td style="padding:8px 12px;border:1px solid #e5e7eb;font-size:12px;color:#6b7280;">${w.curriculum || '—'}</td></tr>`
     }).join('')
-    const html = `<div style="font-family:Arial,sans-serif;padding:36px;max-width:700px;margin:0 auto;"><div style="text-align:center;border-bottom:3px solid #667eea;padding-bottom:20px;margin-bottom:24px;"><h1 style="color:#667eea;font-size:28px;margin:0;">Drop In</h1><h2 style="font-size:18px;color:#374151;margin:4px 0;">Personalised Study Plan</h2><p style="color:#6b7280;font-size:13px;margin:0;">Student: ${studentName} &nbsp;|&nbsp; Roll No: ${studentId} &nbsp;|&nbsp; ${new Date().toLocaleDateString()}</p></div>${weakAreas.length > 0 ? `<h3 style="font-size:16px;margin-bottom:10px;color:#374151;">Areas Needing Attention (below 75%)</h3><table style="width:100%;border-collapse:collapse;margin-bottom:24px;"><thead><tr style="background:#667eea;color:white;"><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Course</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Assessment</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:center;">Score</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Topics to Review</th></tr></thead><tbody>${weakRows}</tbody></table>` : '<p style="color:#22c55e;font-weight:600;">&#10003; All assessments above 75%! Keep it up!</p>'}<h3 style="font-size:16px;margin-bottom:10px;color:#374151;">General Study Strategies</h3><ul style="color:#374151;line-height:2;font-size:14px;"><li>Use Pomodoro Technique: 25 min focused → 5 min break</li><li>Practice active recall — test yourself instead of re-reading</li><li>Review weak topics for at least 30 minutes daily</li><li>Form study groups to discuss difficult concepts</li><li>Use NPTEL / Coursera resources for each flagged topic</li></ul></div>`
+    const html = `<div style="font-family:Arial,sans-serif;padding:36px;max-width:700px;margin:0 auto;"><div style="text-align:center;border-bottom:3px solid #667eea;padding-bottom:20px;margin-bottom:24px;"><h1 style="color:#667eea;font-size:28px;margin:0;">Drop In</h1><h2 style="font-size:18px;color:#374151;margin:4px 0;">Personalised Study Plan</h2><p style="color:#6b7280;font-size:13px;margin:0;">Student: ${studentName} &nbsp;|&nbsp; Roll No: ${studentId} &nbsp;|&nbsp; ${new Date().toLocaleDateString()}</p></div>${weakAreas.length > 0 ? `<h3 style="font-size:16px;margin-bottom:10px;color:#374151;">Areas Needing Attention (below 60%)</h3><table style="width:100%;border-collapse:collapse;margin-bottom:24px;"><thead><tr style="background:#667eea;color:white;"><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Course</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Assessment</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:center;">Score</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Topics to Review</th></tr></thead><tbody>${weakRows}</tbody></table>` : '<p style="color:#22c55e;font-weight:600;">&#10003; All assessments above 60%! Keep it up!</p>'}<h3 style="font-size:16px;margin-bottom:10px;color:#374151;">General Study Strategies</h3><ul style="color:#374151;line-height:2;font-size:14px;"><li>Use Pomodoro Technique: 25 min focused → 5 min break</li><li>Practice active recall — test yourself instead of re-reading</li><li>Review weak topics for at least 30 minutes daily</li><li>Form study groups to discuss difficult concepts</li><li>Use NPTEL / Coursera resources for each flagged topic</li></ul></div>`
     const el = document.createElement('div')
     el.innerHTML = html
     el.style.position = 'absolute'
