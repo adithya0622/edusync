@@ -1,9 +1,13 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Header
+from fastapi import FastAPI, HTTPException, UploadFile, File, Header, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import pandas as pd
 import numpy as np
 import os
+import hmac
+import random
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict
 import json
 import sys
@@ -15,6 +19,10 @@ from cryptography.fernet import Fernet
 import hashlib
 import base64
 from urllib.parse import quote_plus
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from jose import JWTError, jwt
 
 # Load environment variables
 load_dotenv()
@@ -43,10 +51,20 @@ except ImportError:
 
 app = FastAPI(title="Drop In - Student Learning Recommendation System")
 
-# Update CORSMiddleware to allow all origins
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS - locked to known origins
+ALLOWED_ORIGINS = [
+    "https://frontend-tau-ten-9qnwt8gh6m.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,9 +77,48 @@ COURSES_FILE = os.path.join(BASE_DIR, "Courses.xlsx")
 
 # API Key Configuration
 VALID_API_KEYS = [
-    "upgrade-ai-key-2026",  # Default key
-    os.getenv("API_KEY", "upgrade-ai-key-2026")  # Can override with env variable
+    os.getenv("API_KEY", "upgrade-ai-key-2026")
 ]
+
+# ==================== JWT / Password Security ====================
+DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "demo123")
+JWT_SECRET = os.getenv("JWT_SECRET", "dropin-jwt-secret-2026-change-in-prod")
+JWT_ALGORITHM = "HS256"
+TOKEN_EXPIRE_HOURS = 8
+
+_bearer_scheme = HTTPBearer(auto_error=False)
+
+def verify_password(plain: str) -> bool:
+    """Constant-time password comparison to prevent timing attacks"""
+    return hmac.compare_digest(plain.strip(), DEMO_PASSWORD)
+
+def create_access_token(subject: str, class_name: str = "") -> str:
+    expire = datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRE_HOURS)
+    return jwt.encode(
+        {"sub": subject, "class": class_name, "exp": expire},
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+
+def verify_teacher_token(credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme)) -> str:
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Teacher authentication required")
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("sub") != "teacher":
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return payload.get("class", "")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired teacher token")
+
+def verify_any_token(credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme)) -> str:
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload.get("sub", "")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 # ==================== API Key Verification ====================
 def verify_api_key(x_api_key: str = Header(None)) -> str:
@@ -588,20 +645,20 @@ async def root():
     return {"message": "Drop In API Server Running", "status": "ok"}
 
 @app.post("/api/login", response_model=LoginResponse)
-async def login(request: LoginRequest):
+@limiter.limit("10/minute")
+async def login(request: Request, body: LoginRequest):
     """
     Login endpoint - validates student using roll number from email + class
     Expected email format: rollno@gmail.com
     """
     try:
-        email = request.email.strip().lower()
-        class_name = (request.class_name or '').strip()
+        email = body.email.strip().lower()
+        class_name = (body.class_name or '').strip()
 
         if "@" not in email:
             return JSONResponse(status_code=400, content={"error": "Invalid email format"})
 
         roll_no = extract_roll_no_from_email(email)
-        print(f"Login attempt - roll_no: {roll_no}, class: {class_name}")
 
         if not roll_no:
             return JSONResponse(status_code=400, content={"error": "Invalid email format"})
@@ -609,15 +666,19 @@ async def login(request: LoginRequest):
         if not class_name:
             return JSONResponse(status_code=400, content={"error": "Please select your class"})
 
+        if body.password and not verify_password(body.password):
+            return JSONResponse(status_code=401, content={"error": "Invalid password"})
+
         validation = validate_student(roll_no, class_name)
 
         if not validation["success"]:
             return JSONResponse(
                 status_code=401,
-                content={"error": f"Student {roll_no} not found in class {class_name}"}
+                content={"error": "Invalid credentials"}
             )
 
         student_data = validation["data"]
+        token = create_access_token(roll_no, class_name)
 
         return LoginResponse(
             success=True,
@@ -625,13 +686,14 @@ async def login(request: LoginRequest):
             student_id=roll_no,
             student_name=student_data.get("Student Name", f"Student {roll_no}"),
             student_class=class_name,
-            token=f"token_{roll_no}_{class_name.replace(' ', '_')}"
+            token=token
         )
 
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"error": e.detail})
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        print(f"Login error: {e}")
+        return JSONResponse(status_code=500, content={"error": "An internal error occurred"})
 
 @app.get("/api/student/classes")
 async def get_student_classes():
@@ -941,6 +1003,7 @@ TEACHER_EMAIL = "teacher123@gmail.com"
 class TeacherLoginRequest(BaseModel):
     email: str
     class_name: str
+    password: str
 
 class UpdateMarksRequest(BaseModel):
     course: str
@@ -952,17 +1015,21 @@ class AddStudentRequest(BaseModel):
     courses: Dict[str, Dict[str, float]]  # {course_id: {mark_name: value}}
 
 @app.post("/api/teacher/login")
-async def teacher_login(request: TeacherLoginRequest):
+@limiter.limit("5/minute")
+async def teacher_login(request: Request, body: TeacherLoginRequest):
     """Teacher login - validates fixed teacher credentials"""
-    if request.email.strip().lower() != TEACHER_EMAIL:
+    if body.email.strip().lower() != TEACHER_EMAIL:
         return JSONResponse(status_code=401, content={"success": False, "message": "Invalid teacher credentials"})
-    if not request.class_name:
+    if not body.class_name:
         return JSONResponse(status_code=400, content={"success": False, "message": "Class name required"})
+    if not verify_password(body.password):
+        return JSONResponse(status_code=401, content={"success": False, "message": "Invalid teacher credentials"})
+    token = create_access_token("teacher", body.class_name)
     return {
         "success": True,
         "message": "Teacher login successful",
-        "class_name": request.class_name,
-        "token": f"teacher_token_{request.class_name}"
+        "class_name": body.class_name,
+        "token": token
     }
 
 @app.get("/api/teacher/classes")
@@ -975,7 +1042,7 @@ async def get_available_classes():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/teacher/class/{class_name}/students")
-async def get_class_students(class_name: str):
+async def get_class_students(class_name: str, _: str = Depends(verify_teacher_token)):
     """Get all students in a class with their marks and performance (302 courses only)"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -1056,7 +1123,7 @@ async def get_class_students(class_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/teacher/student/{roll_no}/marks")
-async def update_student_marks(roll_no: str, request: UpdateMarksRequest):
+async def update_student_marks(roll_no: str, request: UpdateMarksRequest, _: str = Depends(verify_teacher_token)):
     """Update marks for a specific student in a course (writes back to Excel)"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -1104,7 +1171,7 @@ async def update_student_marks(roll_no: str, request: UpdateMarksRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/teacher/student/add")
-async def add_new_student(request: AddStudentRequest):
+async def add_new_student(request: AddStudentRequest, _: str = Depends(verify_teacher_token)):
     """Add a new student with marks to the relevant course sheets"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -1165,7 +1232,7 @@ async def add_new_student(request: AddStudentRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/teacher/student/{roll_no}")
-async def delete_student(roll_no: str, class_name: str):
+async def delete_student(roll_no: str, class_name: str, _: str = Depends(verify_teacher_token)):
     """Remove a student from all course sheets for their department"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -1212,7 +1279,7 @@ class UpdateCurriculumRequest(BaseModel):
 
 
 @app.put("/api/curriculum/{sheet_id}")
-async def update_curriculum(sheet_id: str, request: UpdateCurriculumRequest):
+async def update_curriculum(sheet_id: str, request: UpdateCurriculumRequest, _: str = Depends(verify_any_token)):
     """Update the curriculum text for a specific assessment in a Courses sheet"""
     try:
         if not os.path.exists(COURSES_FILE):
@@ -1677,55 +1744,6 @@ async def chat(request: ChatRequest):
             response="I'm here to help! Tell me what's on your mind — whether it's academics, study strategies, or just how you're feeling.",
             encouragement="Taking the first step always matters most."
         )
-
-@app.post("/api/chat", response_model=ChatResponse)
-def chat_endpoint(request: ChatRequest):
-    """
-    Chat endpoint - integrates with Groq API to fetch data and generate responses.
-    """
-    try:
-        # Extract student data
-        student_id = request.student_id or "guest"
-        student_data = None
-
-        if student_id != "guest":
-            validation = validate_student(student_id)
-            if validation["success"]:
-                student_data = validation["data"]
-
-        # Call Groq API
-        groq_query = {
-            "query": "query { studentData(id: \"%s\") { name, performance, recommendations } }" % student_id
-        }
-        headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        groq_response = requests.post("https://api.groq.com/graphql", json=groq_query, headers=headers)
-
-        if groq_response.status_code != 200:
-            raise HTTPException(status_code=groq_response.status_code, detail="Groq API error")
-
-        groq_data = groq_response.json()
-        student_info = groq_data.get("data", {}).get("studentData", {})
-
-        # Generate AI response
-        response_text = f"Hello, {student_info.get('name', 'Student')}!\n\n"
-        response_text += f"Performance: {student_info.get('performance', 'Unknown')}\n"
-        response_text += f"Recommendations: {', '.join(student_info.get('recommendations', []))}"
-
-        # Encrypt the response
-        encrypted_response = fernet.encrypt(response_text.encode()).decode()
-
-        return ChatResponse(
-            response=encrypted_response,
-            detected_emotion="neutral",
-            encouragement="Keep up the good work!",
-            suggested_actions=["Review your recent results", "Focus on weak areas"]
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

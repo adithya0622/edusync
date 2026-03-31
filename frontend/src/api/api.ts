@@ -11,9 +11,20 @@ const api = axios.create({
   }
 })
 
+// Automatically attach JWT (student or teacher) to every request
+api.interceptors.request.use((config) => {
+  const teacherToken = localStorage.getItem('teacherToken')
+  const studentToken = localStorage.getItem('token')
+  const authToken = teacherToken || studentToken
+  if (authToken) {
+    config.headers['Authorization'] = `Bearer ${authToken}`
+  }
+  return config
+})
+
 export const authAPI = {
-  login: (email: string, class_name: string) =>
-    api.post('/api/login', { email, class_name }),
+  login: (email: string, class_name: string, password: string) =>
+    api.post('/api/login', { email, class_name, password }),
 }
 
 export const studentAPI = {
@@ -83,8 +94,8 @@ export const chatAPI = {
 }
 
 export const teacherAPI = {
-  login: (email: string, class_name: string) =>
-    api.post('/api/teacher/login', { email, class_name }),
+  login: (email: string, class_name: string, password: string) =>
+    api.post('/api/teacher/login', { email, class_name, password }),
 
   getClasses: () =>
     api.get('/api/teacher/classes'),

@@ -70,6 +70,7 @@ export default function TeacherDashboardPage() {
   const handleLogout = () => {
     localStorage.removeItem('teacherLoggedIn')
     localStorage.removeItem('teacherClass')
+    localStorage.removeItem('teacherToken')
     navigate('/role')
   }
 

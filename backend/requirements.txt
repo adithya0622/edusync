@@ -11,5 +11,5 @@ cryptography>=41.0.0
 requests>=2.31.0
 blake3>=0.3.1
 pyopenssl>=23.3.0
-cryptography>=41.0.0
-requests>=2.31.0
+slowapi>=0.1.9
+python-jose[cryptography]>=3.3.0

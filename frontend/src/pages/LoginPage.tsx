@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authAPI, studentAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { Mail, Users, AlertCircle } from 'lucide-react'
+import { Mail, Users, AlertCircle, Lock } from 'lucide-react'
 import '../styles/LoginPage.css'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [className, setClassName] = useState('')
+  const [password, setPassword] = useState('')
   const [classes, setClasses] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -45,7 +46,7 @@ export default function LoginPage() {
         return
       }
 
-      const response = await authAPI.login(email, className)
+      const response = await authAPI.login(email, className, password)
       
       if (response.data.success) {
         setStudent(
@@ -113,6 +114,22 @@ export default function LoginPage() {
             </div>
           </div>
 
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <div className="input-wrapper">
+              <Lock size={20} className="input-icon" />
+              <input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                className="form-input"
+              />
+            </div>
+          </div>
+
           {error && (
             <div className="error-message">
               <AlertCircle size={18} />
@@ -122,7 +139,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || !email || !className}
+            disabled={loading || !email || !className || !password}
             className="login-button"
           >
             {loading ? (

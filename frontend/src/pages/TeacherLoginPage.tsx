@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { teacherAPI } from '../api/api'
-import { Mail, Users, AlertCircle } from 'lucide-react'
+import { Mail, Users, AlertCircle, Lock } from 'lucide-react'
 import '../styles/TeacherLoginPage.css'
 
 export default function TeacherLoginPage() {
   const [email, setEmail] = useState('')
   const [className, setClassName] = useState('')
+  const [password, setPassword] = useState('')
   const [classes, setClasses] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -31,10 +32,11 @@ export default function TeacherLoginPage() {
     setError('')
     setLoading(true)
     try {
-      const res = await teacherAPI.login(email, className)
+      const res = await teacherAPI.login(email, className, password)
       if (res.data.success) {
         localStorage.setItem('teacherLoggedIn', 'true')
         localStorage.setItem('teacherClass', className)
+        localStorage.setItem('teacherToken', res.data.token || '')
         navigate('/teacher/dashboard')
       } else {
         setError(res.data.message || 'Login failed')
@@ -93,6 +95,22 @@ export default function TeacherLoginPage() {
             </div>
           </div>
 
+          <div className="form-group">
+            <label htmlFor="teacher-password">Password</label>
+            <div className="input-wrapper">
+              <Lock size={20} className="input-icon" />
+              <input
+                id="teacher-password"
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                disabled={loading}
+                className="form-input"
+              />
+            </div>
+          </div>
+
           {error && (
             <div className="error-message">
               <AlertCircle size={18} />
@@ -102,7 +120,7 @@ export default function TeacherLoginPage() {
 
           <button
             type="submit"
-            disabled={loading || !email || !className}
+            disabled={loading || !email || !className || !password}
             className="login-button"
           >
             {loading ? (
