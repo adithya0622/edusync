@@ -39,53 +39,6 @@ function updateStreak(): number {
   return streak
 }
 
-// ── semester subject data ─────────────────────────────────────
-interface SemSubject {
-  code: string
-  name: string
-  credits: number
-  type: 'theory' | 'lab' | 'elective'
-}
-const SEM_DATA: Record<number, { title: string; subjects: SemSubject[] }> = {
-  1: {
-    title: 'Semester 1',
-    subjects: [
-      { code: 'HS3151', name: 'Professional English I',                credits: 4, type: 'theory' },
-      { code: 'MA3151', name: 'Matrices and Calculus',                 credits: 4, type: 'theory' },
-      { code: 'PH3151', name: 'Engineering Physics',                   credits: 3, type: 'theory' },
-      { code: 'CY3151', name: 'Engineering Chemistry',                 credits: 3, type: 'theory' },
-      { code: 'GE3151', name: 'Problem Solving & Python Programming',  credits: 4, type: 'theory' },
-      { code: 'GE3152', name: 'Engineering Graphics',                  credits: 3, type: 'lab'    },
-      { code: 'PH3171', name: 'Engineering Physics Lab',               credits: 2, type: 'lab'    },
-      { code: 'CY3171', name: 'Engineering Chemistry Lab',             credits: 2, type: 'lab'    },
-    ],
-  },
-  2: {
-    title: 'Semester 2',
-    subjects: [
-      { code: 'HS3251', name: 'Professional English II',               credits: 4, type: 'theory' },
-      { code: 'MA3251', name: 'Statistics & Numerical Methods',        credits: 4, type: 'theory' },
-      { code: 'PH3256', name: 'Physics for Information Science',       credits: 3, type: 'theory' },
-      { code: 'BE3251', name: 'Basic Electrical & Electronics Engg.',  credits: 4, type: 'theory' },
-      { code: 'CS3251', name: 'Programming in C',                      credits: 4, type: 'theory' },
-      { code: 'GE3291', name: 'Engineering Practices Lab',             credits: 2, type: 'lab'    },
-      { code: 'CS3271', name: 'Programming Lab',                       credits: 2, type: 'lab'    },
-      { code: 'BE3271', name: 'Electrical & Electronics Lab',          credits: 2, type: 'lab'    },
-    ],
-  },
-  3: {
-    title: 'Semester 3',
-    subjects: [
-      { code: 'MA3351', name: 'Transforms and Partial Differential Equations', credits: 4, type: 'theory' },
-      { code: 'CS3351', name: 'Digital Principles & Computer Organization',    credits: 3, type: 'theory' },
-      { code: 'CS3352', name: 'Foundations of Data Science',                   credits: 3, type: 'theory' },
-      { code: 'CS3391', name: 'Object Oriented Programming',                   credits: 3, type: 'theory' },
-      { code: 'CS3361', name: 'Data Science Lab',                              credits: 2, type: 'lab'    },
-      { code: 'CS3381', name: 'Object Oriented Programming Lab',               credits: 2, type: 'lab'    },
-    ],
-  },
-}
-
 // ── mark heat-map color ─────────────────────────────────────────
 function heatColor(value: number, max: number | undefined): { bg: string; border: string } {
   if (!max || max <= 0) return { bg: '#667eea', border: '#4f46e5' }
@@ -108,7 +61,6 @@ export default function DashboardPage() {
   const [peerRank, setPeerRank] = useState<PeerRank | null>(null)
   const [lowScoreAlerts, setLowScoreAlerts] = useState<string[]>([])
   const [alertDismissed, setAlertDismissed] = useState(false)
-  const [selectedSem, setSelectedSem] = useState<number | null>(null)
   const navigate = useNavigate()
   const { studentId, studentName, studentClass, logout } = useStudent()
 
@@ -345,9 +297,9 @@ export default function DashboardPage() {
               Object.entries(results).map(([courseId]) => (
                 <button
                   key={courseId}
-                  onClick={() => { setSelectedCourse(courseId); setSelectedSem(null) }}
+                  onClick={() => setSelectedCourse(courseId)}
                   className={`course-item ${
-                    selectedSem === null && selectedCourse === courseId ? 'active' : ''
+                    selectedCourse === courseId ? 'active' : ''
                   }`}
                 >
                   <BookOpen size={18} />
@@ -355,97 +307,11 @@ export default function DashboardPage() {
                 </button>
               ))}
           </div>
-          {/* Semester Navigation */}
-          <div style={{marginTop:'1.5rem',borderTop:'1px solid var(--border-color)',paddingTop:'1rem'}}>
-            <h2 className="sidebar-title" style={{marginBottom:'0.6rem'}}>Semesters</h2>
-            <div className="courses-list">
-              {[1, 2, 3].map(sem => (
-                <button
-                  key={sem}
-                  onClick={() => { setSelectedSem(sem); setSelectedCourse(null) }}
-                  className={`course-item ${selectedSem === sem ? 'active' : ''}`}
-                  style={{justifyContent:'flex-start',gap:'0.6rem'}}
-                >
-                  <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:22,height:22,borderRadius:'50%',background: selectedSem === sem ? 'white' : '#667eea22',color: selectedSem === sem ? '#667eea' : '#667eea',fontSize:'0.72rem',fontWeight:700,flexShrink:0}}>S{sem}</span>
-                  <span>Sem {sem}{sem === 3 ? ' · Current' : ''}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </aside>
 
         {/* Main Content */}
         <section className="dashboard-main">
-          {/* ── Semester Overview Panels ── */}
-          {selectedSem !== null && (() => {
-            const semInfo = SEM_DATA[selectedSem]
-            const isLive = selectedSem === 3
-            const typeColor: Record<string, string> = { theory: '#667eea', lab: '#10b981', elective: '#f59e0b' }
-            const totalCredits = semInfo.subjects.reduce((s, sub) => s + sub.credits, 0)
-            return (
-              <div style={{display:'flex',flexDirection:'column',gap:'1.25rem'}}>
-                {/* Semester header card */}
-                <div className="performance-card">
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'0.75rem'}}>
-                    <div>
-                      <h2 style={{fontSize:'1.4rem',fontWeight:700,color:'#374151',margin:0}}>{semInfo.title}</h2>
-                      <p style={{color:'#6b7280',fontSize:'0.88rem',marginTop:'0.25rem'}}>{semInfo.subjects.length} subjects &nbsp;·&nbsp; {totalCredits} total credits</p>
-                    </div>
-                    <span style={{
-                      padding:'0.35rem 1rem',borderRadius:'20px',fontSize:'0.8rem',fontWeight:700,
-                      background: isLive ? '#dcfce7' : '#f3f4f6',
-                      color: isLive ? '#16a34a' : '#6b7280',
-                      border: `1px solid ${isLive ? '#86efac' : '#d1d5db'}`,
-                    }}>
-                      {isLive ? '● Live Data' : '○ Historical'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Subject cards grid */}
-                <div className="marks-breakdown">
-                  <h3 style={{marginBottom:'1rem'}}>Subject Overview</h3>
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:'0.85rem'}}>
-                    {semInfo.subjects.map(sub => (
-                      <div key={sub.code} style={{
-                        background:'linear-gradient(135deg,#f8f9ff 0%,#f0f4ff 100%)',
-                        borderRadius:'10px',
-                        padding:'1rem 1.1rem',
-                        borderLeft:`4px solid ${typeColor[sub.type]}`,
-                        display:'flex',flexDirection:'column',gap:'0.3rem',
-                      }}>
-                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                          <span style={{fontSize:'0.75rem',fontWeight:700,color:typeColor[sub.type],background:typeColor[sub.type]+'18',borderRadius:'4px',padding:'2px 7px'}}>{sub.code}</span>
-                          <span style={{fontSize:'0.74rem',color:'#9ca3af',fontWeight:500}}>{sub.credits} credits</span>
-                        </div>
-                        <span style={{fontSize:'0.9rem',fontWeight:600,color:'#374151',lineHeight:1.35}}>{sub.name}</span>
-                        <span style={{fontSize:'0.75rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.04em',
-                          color: sub.type === 'theory' ? '#667eea' : sub.type === 'lab' ? '#10b981' : '#f59e0b'}}>
-                          {sub.type}
-                        </span>
-                        <div style={{marginTop:'0.4rem',padding:'0.35rem 0.6rem',background: isLive ? '#dcfce7' : '#f3f4f6',borderRadius:'6px',fontSize:'0.78rem',fontWeight:600,color: isLive ? '#16a34a' : '#9ca3af',textAlign:'center'}}>
-                          {isLive ? '📊 View live marks above' : '🔒 Marks not available'}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Prompt for live sem */}
-                {isLive && (
-                  <div style={{background:'linear-gradient(135deg,#ede9fe,#ddd6fe)',borderRadius:'12px',padding:'1rem 1.25rem',display:'flex',alignItems:'center',gap:'0.75rem'}}>
-                    <span style={{fontSize:'1.3rem'}}>💡</span>
-                    <p style={{color:'#4c1d95',fontSize:'0.88rem',fontWeight:500,margin:0}}>
-                      Your live marks for Sem 3 are shown in the <strong>Courses</strong> section above. Click a course to see your detailed assessment breakdown.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
-
-          {/* ── Course marks view (default) ── */}
-          {selectedSem === null && currentResult && (
+          {currentResult && (
             <>
               {/* Performance Card */}
               <div className="performance-card">
@@ -599,12 +465,6 @@ export default function DashboardPage() {
                 </div>
               </div>
             </>
-          )}
-          {/* No course selected and no sem */}
-          {selectedSem === null && !currentResult && !loading && (
-            <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#9ca3af',fontSize:'1rem'}}>
-              Select a course from the sidebar to view marks.
-            </div>
           )}
         </section>
       </main>
