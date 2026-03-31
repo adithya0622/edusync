@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -7,9 +8,16 @@ import CounselorPage from './pages/CounselorPage'
 import RolePage from './pages/RolePage'
 import TeacherLoginPage from './pages/TeacherLoginPage'
 import TeacherDashboardPage from './pages/TeacherDashboardPage'
+import IntroSplash from './components/IntroSplash'
 import './App.css'
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true)
+
+  if (showSplash) {
+    return <IntroSplash onDone={() => setShowSplash(false)} />
+  }
+
   return (
     <Router>
       <Routes>

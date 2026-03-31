@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8082'
-const API_KEY = import.meta.env.VITE_API_KEY || 'upgrade-ai-key-2026'
+const API_KEY = import.meta.env.VITE_API_KEY ?? ''
 
 const api = axios.create({
   baseURL: API_BASE,

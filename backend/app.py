@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Header, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 import pandas as pd
 import numpy as np
 import os
@@ -76,9 +76,7 @@ STUDENTS_FILE = os.path.join(BASE_DIR, "Students.xlsx")
 COURSES_FILE = os.path.join(BASE_DIR, "Courses.xlsx")
 
 # API Key Configuration
-VALID_API_KEYS = [
-    os.getenv("API_KEY", "upgrade-ai-key-2026")
-]
+VALID_API_KEYS = [k for k in [os.getenv("API_KEY")] if k]
 
 # ==================== JWT / Password Security ====================
 DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "demo123")
@@ -139,9 +137,9 @@ def verify_api_key(x_api_key: str = Header(None)) -> str:
 
 # ==================== Models ====================
 class LoginRequest(BaseModel):
-    email: str
-    class_name: Optional[str] = None
-    password: Optional[str] = None
+    email: str = Field(..., max_length=254)
+    class_name: Optional[str] = Field(None, max_length=50)
+    password: Optional[str] = Field(None, max_length=128)
 
 class LoginResponse(BaseModel):
     success: bool
@@ -177,9 +175,9 @@ class StudentRecommendationResponse(BaseModel):
     message: Optional[str] = None
 
 class ChatRequest(BaseModel):
-    message: str
-    student_id: Optional[str] = "guest"
-    conversation_history: Optional[List[Dict[str, str]]] = []
+    message: str = Field(..., min_length=1, max_length=2000)
+    student_id: Optional[str] = Field("guest", max_length=20)
+    conversation_history: Optional[List[Dict[str, str]]] = Field(default_factory=list, max_length=50)
 
 class ChatResponse(BaseModel):
     response: str
@@ -680,7 +678,8 @@ def generate_recommendations(student: dict, total_marks: float, performance_leve
 # ==================== API Endpoints ====================
 
 @app.get("/")
-async def root():
+@limiter.limit("60/minute")
+async def root(request: Request):
     """Health check endpoint"""
     return {"message": "Drop In API Server Running", "status": "ok"}
 
@@ -736,7 +735,8 @@ async def login(request: Request, body: LoginRequest):
         return JSONResponse(status_code=500, content={"error": "An internal error occurred"})
 
 @app.get("/api/student/classes")
-async def get_student_classes():
+@limiter.limit("30/minute")
+async def get_student_classes(request: Request):
     """Return all available class names for student login dropdown"""
     try:
         classes = get_all_classes()
@@ -745,7 +745,8 @@ async def get_student_classes():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/student/{roll_no}/results")
-async def get_student_results_endpoint(roll_no: str, class_name: Optional[str] = None):
+@limiter.limit("20/minute")
+async def get_student_results_endpoint(request: Request, roll_no: str, class_name: Optional[str] = None):
     """Get student results and recommendations for relevant courses"""
     try:
         results = get_student_results(roll_no, class_name)
@@ -768,7 +769,8 @@ async def get_student_results_endpoint(roll_no: str, class_name: Optional[str] =
 
 
 @app.get("/api/students/results")
-async def get_all_students_results():
+@limiter.limit("5/minute")
+async def get_all_students_results(request: Request):
     """Get results and recommendations for all students across all courses"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -799,7 +801,8 @@ async def get_all_students_results():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/student/{roll_no}/recommendations")
-async def get_student_recommendations(roll_no: str, class_name: Optional[str] = None):
+@limiter.limit("20/minute")
+async def get_student_recommendations(request: Request, roll_no: str, class_name: Optional[str] = None):
     """Get recommendations for student across relevant courses"""
     try:
         results = get_student_results(roll_no, class_name)
@@ -822,7 +825,8 @@ async def get_student_recommendations(roll_no: str, class_name: Optional[str] = 
 
 
 @app.get("/api/student/{roll_no}/profile")
-async def get_student_profile(roll_no: str):
+@limiter.limit("20/minute")
+async def get_student_profile(request: Request, roll_no: str):
     """Get student profile information"""
     try:
         validation = validate_student(roll_no)
@@ -844,7 +848,8 @@ async def get_student_profile(roll_no: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/courses")
-async def get_available_courses():
+@limiter.limit("30/minute")
+async def get_available_courses(request: Request):
     """Get all available courses from Courses.xlsx"""
     try:
         if not os.path.exists(COURSES_FILE):
@@ -880,7 +885,8 @@ async def get_available_courses():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/courses/{course_id}/strategies")
-async def get_course_strategies_endpoint(course_id: str):
+@limiter.limit("30/minute")
+async def get_course_strategies_endpoint(request: Request, course_id: str):
     """Get strategies and assessment mappings for a specific course"""
     try:
         if not os.path.exists(COURSES_FILE):
@@ -914,7 +920,8 @@ async def get_course_strategies_endpoint(course_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/train-models")
-async def train_all_models():
+@limiter.limit("2/minute")
+async def train_all_models(request: Request):
     """Train ML models for all courses using mlcode functions"""
     try:
         if not mlcode:
@@ -965,7 +972,8 @@ async def train_all_models():
         raise HTTPException(status_code=500, detail=f"Error training models: {str(e)}")
 
 @app.post("/api/train-models/{course_id}")
-async def train_single_model(course_id: str):
+@limiter.limit("2/minute")
+async def train_single_model(request: Request, course_id: str):
     """Train ML model for a specific course"""
     try:
         if not mlcode:
@@ -1003,7 +1011,8 @@ async def train_single_model(course_id: str):
         raise HTTPException(status_code=500, detail=f"Error training model: {str(e)}")
 
 @app.get("/api/models/status")
-async def get_models_status():
+@limiter.limit("30/minute")
+async def get_models_status(request: Request):
     """Get training status of ML models for all courses"""
     try:
         excel_file = pd.ExcelFile(COURSES_FILE)
@@ -1032,7 +1041,8 @@ async def get_models_status():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/health")
-async def health_check():
+@limiter.limit("60/minute")
+async def health_check(request: Request):
     """Health check endpoint"""
     return {"status": "healthy", "service": "Drop In API"}
 
@@ -1041,17 +1051,29 @@ async def health_check():
 TEACHER_EMAIL = "teacher123@gmail.com"
 
 class TeacherLoginRequest(BaseModel):
-    email: str
-    class_name: str
-    password: str
+    email: str = Field(..., max_length=254)
+    class_name: str = Field(..., max_length=50)
+    password: str = Field(..., max_length=128)
 
 class UpdateMarksRequest(BaseModel):
-    course: str
+    course: str = Field(..., max_length=20)
     marks: Dict[str, float]
 
+    @field_validator('marks')
+    @classmethod
+    def validate_marks(cls, v: Dict[str, float]) -> Dict[str, float]:
+        if len(v) > 50:
+            raise ValueError('Too many mark entries')
+        for key, val in v.items():
+            if len(key) > 100:
+                raise ValueError('Mark key too long')
+            if not (0.0 <= val <= 1000.0):
+                raise ValueError('Mark value out of range (0-1000)')
+        return v
+
 class AddStudentRequest(BaseModel):
-    roll_no: str
-    class_name: str
+    roll_no: str = Field(..., max_length=20)
+    class_name: str = Field(..., max_length=50)
     courses: Dict[str, Dict[str, float]]  # {course_id: {mark_name: value}}
 
 @app.post("/api/teacher/login")
@@ -1073,7 +1095,8 @@ async def teacher_login(request: Request, body: TeacherLoginRequest):
     }
 
 @app.get("/api/teacher/classes")
-async def get_available_classes():
+@limiter.limit("30/minute")
+async def get_available_classes(request: Request):
     """Get all available class names from all sheets of Students.xlsx"""
     try:
         classes = get_all_classes()
@@ -1082,7 +1105,8 @@ async def get_available_classes():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/teacher/class/{class_name}/students")
-async def get_class_students(class_name: str, _: str = Depends(verify_teacher_token)):
+@limiter.limit("20/minute")
+async def get_class_students(request: Request, class_name: str, _: str = Depends(verify_teacher_token)):
     """Get all students in a class with their marks and performance (302 courses only)"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -1163,7 +1187,8 @@ async def get_class_students(class_name: str, _: str = Depends(verify_teacher_to
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/teacher/student/{roll_no}/marks")
-async def update_student_marks(roll_no: str, request: UpdateMarksRequest, _: str = Depends(verify_teacher_token)):
+@limiter.limit("15/minute")
+async def update_student_marks(req: Request, roll_no: str, request: UpdateMarksRequest, _: str = Depends(verify_teacher_token)):
     """Update marks for a specific student in a course (writes back to Excel)"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -1211,7 +1236,8 @@ async def update_student_marks(roll_no: str, request: UpdateMarksRequest, _: str
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/teacher/student/add")
-async def add_new_student(request: AddStudentRequest, _: str = Depends(verify_teacher_token)):
+@limiter.limit("10/minute")
+async def add_new_student(req: Request, request: AddStudentRequest, _: str = Depends(verify_teacher_token)):
     """Add a new student with marks to the relevant course sheets"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -1272,7 +1298,8 @@ async def add_new_student(request: AddStudentRequest, _: str = Depends(verify_te
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/teacher/student/{roll_no}")
-async def delete_student(roll_no: str, class_name: str, _: str = Depends(verify_teacher_token)):
+@limiter.limit("10/minute")
+async def delete_student(request: Request, roll_no: str, class_name: str, _: str = Depends(verify_teacher_token)):
     """Remove a student from all course sheets for their department"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -1314,12 +1341,13 @@ async def delete_student(roll_no: str, class_name: str, _: str = Depends(verify_
 
 
 class UpdateCurriculumRequest(BaseModel):
-    assessment: str
-    curriculum: str
+    assessment: str = Field(..., max_length=100)
+    curriculum: str = Field(..., max_length=5000)
 
 
 @app.put("/api/curriculum/{sheet_id}")
-async def update_curriculum(sheet_id: str, request: UpdateCurriculumRequest, _: str = Depends(verify_any_token)):
+@limiter.limit("15/minute")
+async def update_curriculum(req: Request, sheet_id: str, request: UpdateCurriculumRequest, _: str = Depends(verify_any_token)):
     """Update the curriculum text for a specific assessment in a Courses sheet"""
     try:
         if not os.path.exists(COURSES_FILE):
@@ -1360,7 +1388,8 @@ async def update_curriculum(sheet_id: str, request: UpdateCurriculumRequest, _: 
 # ==================== Peer Rank / Analytics Endpoints ====================
 
 @app.get("/api/student/{roll_no}/rank")
-async def get_student_rank(roll_no: str, class_name: Optional[str] = None, _: str = Depends(verify_any_token)):
+@limiter.limit("20/minute")
+async def get_student_rank(request: Request, roll_no: str, class_name: Optional[str] = None, _: str = Depends(verify_any_token)):
     """Return the student's anonymous rank within their class (percentile)"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -1416,7 +1445,8 @@ async def get_student_rank(roll_no: str, class_name: Optional[str] = None, _: st
 
 
 @app.get("/api/teacher/class/{class_name}/analytics")
-async def get_class_analytics(class_name: str, _: str = Depends(verify_teacher_token)):
+@limiter.limit("10/minute")
+async def get_class_analytics(request: Request, class_name: str, _: str = Depends(verify_teacher_token)):
     """Return per-assessment averages, min, max and performance distribution for the class"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -1477,7 +1507,9 @@ import io
 import csv as csv_module
 
 @app.post("/api/teacher/student/import-csv")
+@limiter.limit("3/minute")
 async def import_students_csv(
+    request: Request,
     class_name: str,
     course_id: str,
     file: UploadFile = File(...),
@@ -1550,7 +1582,9 @@ async def import_students_csv(
 
 
 @app.post("/api/recommendations/student")
+@limiter.limit("15/minute")
 async def get_student_recommendation(
+    req: Request,
     request: StudentRecommendationRequest,
     api_key: str = Header(None, alias="x-api-key")
 ):
@@ -1929,7 +1963,8 @@ ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", Fernet.generate_key().decode())
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+@limiter.limit("15/minute")
+async def chat(req: Request, request: ChatRequest):
     """
     AI Academic Counselor endpoint
     Provides personalized academic help, study strategies, and emotional support
