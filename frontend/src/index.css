@@ -18,6 +18,84 @@
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
 }
 
+/* ── Dark mode ── */
+body.dark {
+  --background: #0f172a;
+  --surface: #1e293b;
+  --surface-alt: #273549;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --border-color: #334155;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.5);
+}
+
+body.dark .dashboard-header,
+body.dark .teacher-header {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+  border-bottom: 1px solid #334155;
+}
+
+body.dark .dashboard-container,
+body.dark .teacher-dashboard {
+  background: var(--background);
+}
+
+body.dark .performance-card,
+body.dark .marks-breakdown,
+body.dark .recommendations-section,
+body.dark .courses-sidebar,
+body.dark .table-wrapper,
+body.dark .add-panel {
+  background: var(--surface) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark .course-item {
+  color: var(--text-secondary) !important;
+}
+
+body.dark .course-item.active,
+body.dark .course-item:hover {
+  background: rgba(99,102,241,0.2) !important;
+  color: #818cf8 !important;
+}
+
+body.dark .students-table th {
+  background: #273549 !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark .students-table td {
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+body.dark .students-table tr:hover td {
+  background: rgba(99,102,241,0.08) !important;
+}
+
+body.dark input,
+body.dark textarea,
+body.dark select {
+  background: #273549 !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+body.dark .header-title h1,
+body.dark .header-title p {
+  color: #f1f5f9 !important;
+}
+
+body.dark .user-name,
+body.dark .user-id {
+  color: #cbd5e1 !important;
+}
+
 * {
   margin: 0;
   padding: 0;

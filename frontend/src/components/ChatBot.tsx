@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import html2pdf from 'html2pdf.js';
 import '../styles/ChatBot.css';
 
 interface Message {
@@ -29,6 +30,26 @@ const ChatBot: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const handleExportChat = async () => {
+    const rows = messages.map(m => {
+      const who = m.sender === 'user' ? 'You' : 'Assistant'
+      const whoColor = m.sender === 'user' ? '#667eea' : '#10b981'
+      const time = m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      return `<div style="margin-bottom:12px;padding:10px 14px;border-radius:10px;background:${m.sender==='user'?'#f0f4ff':'#f0fdf9'};border-left:4px solid ${whoColor};"><div style="font-size:11px;color:${whoColor};font-weight:700;margin-bottom:4px;">${who} &nbsp;·&nbsp; ${time}</div><div style="font-size:13px;color:#374151;white-space:pre-wrap;">${m.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>`
+    }).join('')
+    const html = `<div style="font-family:Arial,sans-serif;padding:36px;max-width:700px;"><div style="text-align:center;border-bottom:3px solid #667eea;padding-bottom:16px;margin-bottom:20px;"><h1 style="color:#667eea;font-size:24px;margin:0;">Drop In</h1><h2 style="font-size:16px;color:#374151;margin:4px 0;">AI Counselor Chat Export</h2><p style="color:#6b7280;font-size:12px;margin:0;">Exported ${new Date().toLocaleString()}</p></div>${rows}</div>`
+    const el = document.createElement('div')
+    el.innerHTML = html
+    el.style.position = 'absolute'
+    el.style.left = '-9999px'
+    document.body.appendChild(el)
+    try {
+      await (html2pdf as any)().set({ margin: 0.4, filename: `Chat_Export_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } }).from(el).save()
+    } finally {
+      document.body.removeChild(el)
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,12 +129,23 @@ const ChatBot: React.FC = () => {
         <div className="chat-modal">
           <div className="chat-header">
             <h3>Study Assistant</h3>
-            <button
-              className="close-btn"
-              onClick={() => setIsOpen(false)}
-            >
-              ✕
-            </button>
+            <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+              {messages.length > 1 && (
+                <button
+                  onClick={handleExportChat}
+                  title="Export chat as PDF"
+                  style={{background:'none',border:'1px solid rgba(255,255,255,0.4)',color:'white',borderRadius:'6px',padding:'3px 8px',fontSize:'11px',cursor:'pointer',fontWeight:600}}
+                >
+                  📄 Export
+                </button>
+              )}
+              <button
+                className="close-btn"
+                onClick={() => setIsOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           <div className="chat-messages">

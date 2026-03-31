@@ -45,6 +45,9 @@ export const studentAPI = {
 
   getAllResults: () =>
     api.get('/api/students/results'),
+
+  getRank: (rollNo: string, className?: string) =>
+    api.get(`/api/student/${rollNo}/rank`, { params: className ? { class_name: className } : {} }),
 }
 
 export const recommendationAPI = {
@@ -111,6 +114,18 @@ export const teacherAPI = {
 
   deleteStudent: (roll_no: string, class_name: string) =>
     api.delete(`/api/teacher/student/${encodeURIComponent(roll_no)}`, { params: { class_name } }),
+
+  getAnalytics: (class_name: string) =>
+    api.get(`/api/teacher/class/${encodeURIComponent(class_name)}/analytics`),
+
+  importCSV: (class_name: string, course_id: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/api/teacher/student/import-csv', formData, {
+      params: { class_name, course_id },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }
 
 export const curriculumAPI = {

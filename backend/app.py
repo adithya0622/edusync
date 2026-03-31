@@ -373,6 +373,8 @@ def get_student_results(roll_no: str, class_name: str = None) -> dict:
                 except Exception as res_err:
                     print(f"Error generating online resources: {res_err}")
 
+                max_marks_map = get_max_marks_map(sheet_name)
+
                 all_results[sheet_name] = {
                     "course": sheet_name,
                     "student_name": student_data.get("Student Name", student_data.get("Name", "Unknown")),
@@ -382,7 +384,8 @@ def get_student_results(roll_no: str, class_name: str = None) -> dict:
                     "performance_level": performance_level,
                     "recommendations": recommendations,
                     "online_resources": online_resources,
-                    "curriculum_map": course_curriculum_map
+                    "curriculum_map": course_curriculum_map,
+                    "max_marks_map": max_marks_map
                 }
         
         if not found_student:
@@ -442,6 +445,43 @@ def get_curriculum_map(course_301_id: str) -> Dict[str, str]:
         return result
     except Exception as e:
         print(f"Error reading curriculum map for {course_301_id}: {e}")
+        return {}
+
+
+def get_max_marks_map(course_id: str) -> Dict[str, float]:
+    """
+    Read the max marks per assessment from Courses.xlsx.
+    Returns {assessment_name: max_mark_value}
+    Prefers 'Converted Marks' column, falls back to 'Total Marks'.
+    """
+    try:
+        if not os.path.exists(COURSES_FILE):
+            return {}
+        df = pd.read_excel(COURSES_FILE, sheet_name=course_id, engine='openpyxl')
+        if 'Assessments' not in df.columns:
+            return {}
+        max_col = None
+        for col in df.columns:
+            if 'converted' in col.lower() and 'mark' in col.lower():
+                max_col = col
+                break
+        if not max_col:
+            for col in df.columns:
+                if 'total' in col.lower() and 'mark' in col.lower():
+                    max_col = col
+                    break
+        if not max_col:
+            return {}
+        result: Dict[str, float] = {}
+        for _, row in df.iterrows():
+            if pd.notna(row['Assessments']) and pd.notna(row.get(max_col)):
+                try:
+                    result[str(row['Assessments']).strip()] = float(row[max_col])
+                except (ValueError, TypeError):
+                    pass
+        return result
+    except Exception as e:
+        print(f"Error reading max marks map for {course_id}: {e}")
         return {}
 
 
@@ -1317,6 +1357,198 @@ async def update_curriculum(sheet_id: str, request: UpdateCurriculumRequest, _: 
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== Peer Rank / Analytics Endpoints ====================
+
+@app.get("/api/student/{roll_no}/rank")
+async def get_student_rank(roll_no: str, class_name: Optional[str] = None, _: str = Depends(verify_any_token)):
+    """Return the student's anonymous rank within their class (percentile)"""
+    try:
+        if not os.path.exists(STUDENTS_FILE):
+            raise HTTPException(status_code=404, detail="Students file not found")
+
+        dept = get_dept_from_class(class_name) if class_name else ""
+        xl = pd.ExcelFile(STUDENTS_FILE, engine='openpyxl')
+        target_sheets = [s for s in xl.sheet_names if ('302' in s) and (not dept or dept.upper() in s.upper())]
+
+        # Gather totals for all students in the same class
+        totals: Dict[str, float] = {}
+        for sheet in target_sheets:
+            df = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+            class_col = next((c for c in df.columns if 'class' in c.lower()), None)
+            if class_col and class_name:
+                df = df[df[class_col].astype(str).str.strip() == class_name.strip()]
+            roll_col = next((c for c in df.columns if 'roll' in c.lower() or ('student' in c.lower() and 'id' in c.lower())), None)
+            if not roll_col:
+                continue
+            for _, row in df.iterrows():
+                rn = str(row[roll_col]).strip()
+                if not rn or rn == 'nan':
+                    continue
+                row_total = sum(
+                    float(row.get(col, 0) or 0)
+                    for col in df.columns
+                    if any(t in col.lower() for t in ['assignment', 'quiz', 'exam', 'lab', 'mark', 'score', 'test'])
+                )
+                totals[rn] = totals.get(rn, 0) + row_total
+
+        if str(roll_no).strip() not in totals:
+            raise HTTPException(status_code=404, detail="Student not found in class")
+
+        student_total = totals[str(roll_no).strip()]
+        all_totals = list(totals.values())
+        students_below = sum(1 for t in all_totals if t < student_total)
+        percentile = round((students_below / len(all_totals)) * 100) if all_totals else 50
+        rank = sorted(all_totals, reverse=True).index(student_total) + 1
+
+        return {
+            "success": True,
+            "rank": rank,
+            "total_students": len(all_totals),
+            "percentile": percentile,
+            "your_total": round(student_total, 2),
+            "class_avg": round(sum(all_totals) / len(all_totals), 2) if all_totals else 0,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/teacher/class/{class_name}/analytics")
+async def get_class_analytics(class_name: str, _: str = Depends(verify_teacher_token)):
+    """Return per-assessment averages, min, max and performance distribution for the class"""
+    try:
+        if not os.path.exists(STUDENTS_FILE):
+            raise HTTPException(status_code=404, detail="Students file not found")
+
+        dept = get_dept_from_class(class_name)
+        xl = pd.ExcelFile(STUDENTS_FILE, engine='openpyxl')
+        target_sheets = [s for s in xl.sheet_names if dept.upper() in s.upper() and '302' in s]
+
+        course_analytics: Dict[str, dict] = {}
+        for sheet in target_sheets:
+            df = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+            class_col = next((c for c in df.columns if 'class' in c.lower()), None)
+            if class_col:
+                df = df[df[class_col].astype(str).str.strip() == class_name.strip()]
+            if df.empty:
+                continue
+
+            assess_cols = [c for c in df.columns if any(t in c.lower() for t in ['assignment', 'quiz', 'exam', 'lab', 'mark', 'score', 'test'])]
+            assess_stats = {}
+            for col in assess_cols:
+                vals = pd.to_numeric(df[col], errors='coerce').dropna()
+                if vals.empty:
+                    continue
+                assess_stats[col] = {
+                    "avg": round(float(vals.mean()), 2),
+                    "min": round(float(vals.min()), 2),
+                    "max": round(float(vals.max()), 2),
+                    "count": int(vals.count()),
+                }
+
+            # Performance distribution
+            totals = df[assess_cols].apply(pd.to_numeric, errors='coerce').fillna(0).sum(axis=1)
+            dist = {"Excellent": 0, "Very Good": 0, "Good": 0, "Satisfactory": 0, "Needs Improvement": 0}
+            for t in totals:
+                if t >= 200: dist["Excellent"] += 1
+                elif t >= 150: dist["Very Good"] += 1
+                elif t >= 100: dist["Good"] += 1
+                elif t >= 50: dist["Satisfactory"] += 1
+                else: dist["Needs Improvement"] += 1
+
+            course_analytics[sheet] = {
+                "assessment_stats": assess_stats,
+                "performance_distribution": dist,
+                "total_students": len(df),
+                "class_avg_total": round(float(totals.mean()), 2) if not totals.empty else 0,
+            }
+
+        return {"success": True, "class": class_name, "analytics": course_analytics}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+import io
+import csv as csv_module
+
+@app.post("/api/teacher/student/import-csv")
+async def import_students_csv(
+    class_name: str,
+    course_id: str,
+    file: UploadFile = File(...),
+    _: str = Depends(verify_teacher_token),
+):
+    """
+    Bulk-import students from a CSV upload.
+    CSV must have headers: roll_no, <assessment1>, <assessment2>, ...
+    """
+    try:
+        if not file.filename or not file.filename.endswith('.csv'):
+            raise HTTPException(status_code=400, detail="File must be a .csv")
+
+        content = await file.read()
+        decoded = content.decode('utf-8-sig')
+        reader = csv_module.DictReader(io.StringIO(decoded))
+        rows = list(reader)
+        if not rows:
+            raise HTTPException(status_code=400, detail="CSV is empty")
+
+        if 'roll_no' not in reader.fieldnames:
+            raise HTTPException(status_code=400, detail="CSV must contain a 'roll_no' column")
+
+        dept = get_dept_from_class(class_name)
+        xl = pd.ExcelFile(STUDENTS_FILE, engine='openpyxl')
+        sheets_data: Dict[str, pd.DataFrame] = {s: pd.read_excel(STUDENTS_FILE, sheet_name=s, engine='openpyxl') for s in xl.sheet_names}
+
+        dept_302_sheets = [s for s in xl.sheet_names if dept.upper() in s.upper() and '302' in s]
+        if course_id not in dept_302_sheets:
+            raise HTTPException(status_code=404, detail=f"Course sheet {course_id} not found for {class_name}")
+
+        added, skipped = [], []
+        df_target = sheets_data[course_id]
+        roll_col = next((c for c in df_target.columns if 'roll' in c.lower() or ('student' in c.lower() and 'id' in c.lower())), None)
+
+        for row in rows:
+            rn = str(row.get('roll_no', '')).strip()
+            if not rn:
+                continue
+            # Skip duplicates
+            if roll_col and (df_target[roll_col].astype(str).str.strip() == rn).any():
+                skipped.append(rn)
+                continue
+            marks = {k: float(v or 0) for k, v in row.items() if k != 'roll_no'}
+            new_row: Dict[str, object] = {}
+            for col in df_target.columns:
+                if 'roll' in col.lower() or ('student' in col.lower() and 'id' in col.lower()):
+                    new_row[col] = rn
+                elif 'class' in col.lower():
+                    new_row[col] = class_name
+                else:
+                    new_row[col] = marks.get(col, 0)
+            sheets_data[course_id] = pd.concat([sheets_data[course_id], pd.DataFrame([new_row])], ignore_index=True)
+            added.append(rn)
+
+        with pd.ExcelWriter(STUDENTS_FILE, engine='openpyxl') as writer:
+            for sheet, data in sheets_data.items():
+                data.to_excel(writer, sheet_name=sheet, index=False)
+
+        return {"success": True, "added": len(added), "skipped": len(skipped), "roll_nos_added": added, "roll_nos_skipped": skipped}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+# ==================== AI Counselor Chat Bot ====================
+
+
 @app.post("/api/recommendations/student")
 async def get_student_recommendation(
     request: StudentRecommendationRequest,
@@ -1435,7 +1667,6 @@ async def get_student_recommendation(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting student recommendations: {str(e)}")
 
-# ==================== AI Counselor Chat Bot ====================
 
 # Progress tracking for students
 student_chat_sessions: Dict[str, Dict] = {}

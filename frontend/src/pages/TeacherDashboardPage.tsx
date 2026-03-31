@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { teacherAPI } from '../api/api'
-import { LogOut, Edit2, Save, X, Download, BookOpen, UserPlus, Eye, EyeOff, Trash2 } from 'lucide-react'
+import { LogOut, Edit2, Save, X, Download, BookOpen, UserPlus, Eye, EyeOff, Trash2, BarChart3, Moon, Sun, Upload } from 'lucide-react'
 import html2pdf from 'html2pdf.js'
 import '../styles/TeacherDashboardPage.css'
 
@@ -16,6 +16,20 @@ interface Student {
   masked_roll_no: string
   class: string
   courses: Record<string, CourseData>
+}
+
+interface AssessmentStat {
+  avg: number
+  min: number
+  max: number
+  count: number
+}
+
+interface CourseAnalytics {
+  assessment_stats: Record<string, AssessmentStat>
+  performance_distribution: Record<string, number>
+  total_students: number
+  class_avg_total: number
 }
 
 const PERF_COLOR: Record<string, string> = {
@@ -44,9 +58,21 @@ export default function TeacherDashboardPage() {
   const [showRollNos, setShowRollNos] = useState(false)
   const [deletingRoll, setDeletingRoll] = useState<string | null>(null)
 
+  const [activeTab, setActiveTab] = useState<'students' | 'analytics'>('students')
+  const [analytics, setAnalytics] = useState<Record<string, CourseAnalytics> | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true')
+  const [csvImporting, setCsvImporting] = useState(false)
+
   const navigate = useNavigate()
   const teacherClass = localStorage.getItem('teacherClass') || ''
   const teacherLoggedIn = localStorage.getItem('teacherLoggedIn')
+
+  useEffect(() => {
+    document.body.classList.toggle('dark', darkMode)
+    localStorage.setItem('darkMode', String(darkMode))
+  }, [darkMode])
 
   useEffect(() => {
     if (!teacherLoggedIn) {
@@ -72,6 +98,38 @@ export default function TeacherDashboardPage() {
     localStorage.removeItem('teacherClass')
     localStorage.removeItem('teacherToken')
     navigate('/role')
+  }
+
+  const handleShowAnalytics = () => {
+    setActiveTab('analytics')
+    if (!analytics) {
+      setAnalyticsLoading(true)
+      teacherAPI.getAnalytics(teacherClass)
+        .then(res => { if (res.data.success) setAnalytics(res.data.analytics) })
+        .catch(() => {})
+        .finally(() => setAnalyticsLoading(false))
+    }
+  }
+
+  const handleCSVImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !selectedCourse) return
+    if (!window.confirm(`Import students from ${file.name} into ${selectedCourse}? Duplicates will be skipped.`)) return
+    setCsvImporting(true)
+    try {
+      const res = await teacherAPI.importCSV(teacherClass, selectedCourse, file)
+      if (res.data.success) {
+        alert(`✅ Imported ${res.data.added} students. ${res.data.skipped} duplicates skipped.`)
+        // Reload students
+        const reload = await teacherAPI.getClassStudents(teacherClass)
+        if (reload.data.success) setStudents(reload.data.students)
+      }
+    } catch (err: any) {
+      alert('Import failed: ' + (err.response?.data?.detail || 'Unknown error'))
+    } finally {
+      setCsvImporting(false)
+      e.target.value = '' // reset file input
+    }
   }
 
   const handleDelete = async (student: Student) => {
@@ -237,6 +295,12 @@ export default function TeacherDashboardPage() {
         </div>
         <div className="header-right">
           <span className="student-count">{students.length} Students</span>
+          <button onClick={() => setActiveTab('students')} className={`btn-toggle-rolls ${activeTab === 'students' ? 'active' : ''}`}>
+            <BookOpen size={15} /> Students
+          </button>
+          <button onClick={handleShowAnalytics} className={`btn-toggle-rolls ${activeTab === 'analytics' ? 'active' : ''}`}>
+            <BarChart3 size={15} /> Analytics
+          </button>
           <button onClick={openAddPanel} className="btn-add-student">
             <UserPlus size={16} /> Add Student
           </button>
@@ -247,6 +311,9 @@ export default function TeacherDashboardPage() {
           >
             {showRollNos ? <EyeOff size={15} /> : <Eye size={15} />}
             {showRollNos ? 'Hide IDs' : 'Show IDs'}
+          </button>
+          <button onClick={() => setDarkMode(d => !d)} className="btn-toggle-rolls" title="Toggle dark mode">
+            {darkMode ? <Sun size={15}/> : <Moon size={15}/>}
           </button>
           <button onClick={handleLogout} className="btn-logout">
             <LogOut size={18} /> Logout
@@ -259,7 +326,62 @@ export default function TeacherDashboardPage() {
           <div className="loading-spinner"><div className="spinner"></div><p>Loading students...</p></div>
         ) : error ? (
           <div className="error-full">{error}</div>
+        ) : activeTab === 'analytics' ? (
+          /* ── Analytics Tab ─────────────────────────────────────────── */
+          <div style={{padding:'1.5rem'}}>
+            <h2 style={{marginBottom:'1.5rem',color:'var(--text-primary)',fontSize:'1.25rem',fontWeight:700}}>Class Analytics — {teacherClass}</h2>
+            {analyticsLoading ? (
+              <div className="loading-spinner"><div className="spinner"></div><p>Loading analytics...</p></div>
+            ) : analytics ? (
+              Object.entries(analytics).map(([courseId, data]) => (
+                <div key={courseId} style={{marginBottom:'2rem',background:'var(--surface)',borderRadius:'12px',padding:'1.25rem',boxShadow:'var(--shadow-sm)'}}>
+                  <h3 style={{marginBottom:'1rem',color:'#667eea'}}>{courseId}</h3>
+                  <div style={{display:'flex',gap:'1rem',flexWrap:'wrap',marginBottom:'1rem'}}>
+                    <div style={{background:'#f0f9ff',borderRadius:'8px',padding:'0.75rem 1.25rem',minWidth:140}}>
+                      <div style={{fontSize:'0.75rem',color:'#6b7280',marginBottom:'2px'}}>Students</div>
+                      <div style={{fontSize:'1.5rem',fontWeight:700,color:'#0ea5e9'}}>{data.total_students}</div>
+                    </div>
+                    <div style={{background:'#f0fdf4',borderRadius:'8px',padding:'0.75rem 1.25rem',minWidth:140}}>
+                      <div style={{fontSize:'0.75rem',color:'#6b7280',marginBottom:'2px'}}>Class Avg Total</div>
+                      <div style={{fontSize:'1.5rem',fontWeight:700,color:'#22c55e'}}>{data.class_avg_total}</div>
+                    </div>
+                  </div>
+                  {/* Performance distribution */}
+                  <div style={{marginBottom:'1rem'}}>
+                    <div style={{fontSize:'0.8rem',fontWeight:600,color:'var(--text-secondary)',marginBottom:'0.5rem'}}>Performance Distribution</div>
+                    <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
+                      {Object.entries(data.performance_distribution).map(([lvl, count]) => (
+                        <div key={lvl} style={{display:'flex',alignItems:'center',gap:'0.3rem',background:PERF_COLOR[lvl]+'22',color:PERF_COLOR[lvl],borderRadius:'20px',padding:'0.3rem 0.8rem',fontSize:'0.8rem',fontWeight:600}}>
+                          {lvl}: {count}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Assessment averages bar chart */}
+                  <div style={{fontSize:'0.8rem',fontWeight:600,color:'var(--text-secondary)',marginBottom:'0.5rem'}}>Assessment Averages</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:'0.4rem'}}>
+                    {Object.entries(data.assessment_stats).map(([col, stat]) => {
+                      const pct = Math.min(100, stat.max > 0 ? (stat.avg / stat.max) * 100 : 50)
+                      const barColor = pct >= 75 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444'
+                      return (
+                        <div key={col} style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
+                          <span style={{fontSize:'0.78rem',color:'var(--text-secondary)',width:180,flexShrink:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{col}</span>
+                          <div style={{flex:1,height:16,background:'#f3f4f6',borderRadius:'8px',overflow:'hidden'}}>
+                            <div style={{height:'100%',width:`${pct}%`,background:barColor,borderRadius:'8px',transition:'width 0.5s ease'}}/>
+                          </div>
+                          <span style={{fontSize:'0.78rem',fontWeight:600,color:barColor,width:70,textAlign:'right',flexShrink:0}}>avg {stat.avg} / max {stat.max}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p style={{color:'var(--text-secondary)'}}>No analytics available.</p>
+            )}
+          </div>
         ) : (
+          /* ── Students Tab ──────────────────────────────────────────── */
           <>
             {courses.length > 1 && (
               <div className="course-tabs">
@@ -272,6 +394,11 @@ export default function TeacherDashboardPage() {
                     <BookOpen size={15} /> {c}
                   </button>
                 ))}
+                {/* CSV Import */}
+                <label style={{display:'flex',alignItems:'center',gap:'0.4rem',padding:'0.4rem 0.9rem',background:'#f0fdf4',color:'#16a34a',border:'1px solid #bbf7d0',borderRadius:'8px',fontSize:'0.82rem',fontWeight:600,cursor:csvImporting?'wait':'pointer',opacity:csvImporting?0.7:1}} title="Import students from CSV">
+                  <Upload size={14}/>{csvImporting ? 'Importing...' : 'Import CSV'}
+                  <input type="file" accept=".csv" onChange={handleCSVImport} style={{display:'none'}} disabled={csvImporting}/>
+                </label>
               </div>
             )}
             {students.length === 0 ? (
