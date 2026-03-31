@@ -137,33 +137,40 @@ export default function DashboardPage() {
 
   const handleDownloadStudyPlan = async () => {
     if (!results) return
-    const weakAreas: { course: string; assessment: string; mark: number; max: number; curriculum: string }[] = []
+    const weakAreas: { course: string; assessment: string; mark: number; max: number | null; curriculum: string }[] = []
     for (const [courseId, courseData] of Object.entries(results) as [string, CourseResult][]) {
       const maxMap = courseData.max_marks_map || {}
       const currMap = courseData.curriculum_map || {}
       for (const [assessment, mark] of Object.entries(courseData.marks)) {
         if (assessment.includes('Converted')) continue
-        const max = maxMap[assessment]
-        if (max && max > 0 && mark / max < 0.60) {
-          weakAreas.push({ course: courseId, assessment, mark, max: Math.round(max), curriculum: currMap[assessment] || '' })
+        const max = maxMap[assessment] ?? null
+        // Include if below 60% of max, or always include if max is unknown
+        if (!max || max <= 0 || mark / max < 0.60) {
+          weakAreas.push({ course: courseId, assessment, mark, max: max ? Math.round(max) : null, curriculum: currMap[assessment] || '' })
         }
       }
     }
     const weakRows = weakAreas.map(w => {
-      const pct = Math.round((w.mark / w.max) * 100)
-      const color = pct >= 50 ? '#f59e0b' : '#ef4444'
-      return `<tr><td style="padding:8px 12px;border:1px solid #e5e7eb;">${w.course}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;">${w.assessment}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:center;color:${color};font-weight:700;">${w.mark}/${w.max} (${pct}%)</td><td style="padding:8px 12px;border:1px solid #e5e7eb;font-size:12px;color:#6b7280;">${w.curriculum || '—'}</td></tr>`
+      const pct = w.max ? Math.round((w.mark / w.max) * 100) : null
+      const color = pct === null ? '#6b7280' : pct >= 50 ? '#f59e0b' : '#ef4444'
+      const scoreText = w.max ? `${w.mark}/${w.max}${pct !== null ? ` (${pct}%)` : ''}` : String(w.mark)
+      return `<tr><td style="padding:8px 12px;border:1px solid #e5e7eb;">${w.course}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;">${w.assessment}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:center;color:${color};font-weight:700;">${scoreText}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;font-size:12px;color:#6b7280;">${w.curriculum || '\u2014'}</td></tr>`
     }).join('')
-    const html = `<div style="font-family:Arial,sans-serif;padding:36px;max-width:700px;margin:0 auto;"><div style="text-align:center;border-bottom:3px solid #667eea;padding-bottom:20px;margin-bottom:24px;"><h1 style="color:#667eea;font-size:28px;margin:0;">Drop In</h1><h2 style="font-size:18px;color:#374151;margin:4px 0;">Personalised Study Plan</h2><p style="color:#6b7280;font-size:13px;margin:0;">Student: ${studentName} &nbsp;|&nbsp; Roll No: ${studentId} &nbsp;|&nbsp; ${new Date().toLocaleDateString()}</p></div>${weakAreas.length > 0 ? `<h3 style="font-size:16px;margin-bottom:10px;color:#374151;">Areas Needing Attention (below 60%)</h3><table style="width:100%;border-collapse:collapse;margin-bottom:24px;"><thead><tr style="background:#667eea;color:white;"><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Course</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Assessment</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:center;">Score</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Topics to Review</th></tr></thead><tbody>${weakRows}</tbody></table>` : '<p style="color:#22c55e;font-weight:600;">&#10003; All assessments above 60%! Keep it up!</p>'}<h3 style="font-size:16px;margin-bottom:10px;color:#374151;">General Study Strategies</h3><ul style="color:#374151;line-height:2;font-size:14px;"><li>Use Pomodoro Technique: 25 min focused → 5 min break</li><li>Practice active recall — test yourself instead of re-reading</li><li>Review weak topics for at least 30 minutes daily</li><li>Form study groups to discuss difficult concepts</li><li>Use NPTEL / Coursera resources for each flagged topic</li></ul></div>`
-    const el = document.createElement('div')
-    el.innerHTML = html
-    el.style.position = 'absolute'
-    el.style.left = '-9999px'
-    document.body.appendChild(el)
+    const html = `<div style="font-family:Arial,sans-serif;padding:36px;max-width:700px;margin:0 auto;"><div style="text-align:center;border-bottom:3px solid #667eea;padding-bottom:20px;margin-bottom:24px;"><h1 style="color:#667eea;font-size:28px;margin:0;">Drop In</h1><h2 style="font-size:18px;color:#374151;margin:4px 0;">Personalised Study Plan</h2><p style="color:#6b7280;font-size:13px;margin:0;">Student: ${studentName} &nbsp;|&nbsp; Roll No: ${studentId} &nbsp;|&nbsp; ${new Date().toLocaleDateString()}</p></div>${weakAreas.length > 0 ? `<h3 style="font-size:16px;margin-bottom:10px;color:#374151;">Assessments &amp; Focus Areas</h3><table style="width:100%;border-collapse:collapse;margin-bottom:24px;"><thead><tr style="background:#667eea;color:white;"><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Course</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Assessment</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:center;">Score</th><th style="padding:10px 12px;border:1px solid #667eea;text-align:left;">Topics to Review</th></tr></thead><tbody>${weakRows}</tbody></table>` : '<p style="color:#22c55e;font-weight:600;">&#10003; All assessments above 60%! Keep it up!</p>'}<h3 style="font-size:16px;margin-bottom:10px;color:#374151;">General Study Strategies</h3><ul style="color:#374151;line-height:2;font-size:14px;"><li>Use Pomodoro Technique: 25 min focused &#8594; 5 min break</li><li>Practice active recall &#8212; test yourself instead of re-reading</li><li>Review weak topics for at least 30 minutes daily</li><li>Form study groups to discuss difficult concepts</li><li>Use NPTEL / Coursera resources for each flagged topic</li></ul></div>`
     try {
-      await (html2pdf as any)().set({ margin: 0.4, filename: `StudyPlan_${studentId}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } }).from(el).save()
-    } finally {
-      document.body.removeChild(el)
+      await (html2pdf as any)()
+        .set({
+          margin: 0.4,
+          filename: `StudyPlan_${studentId}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+        })
+        .from(html)
+        .save()
+    } catch (err) {
+      console.error('Study plan PDF error:', err)
+      alert('Failed to generate PDF. Please try again.')
     }
   }
 
