@@ -6,7 +6,7 @@ import { Users, TrendingUp, Briefcase, BookOpen, ArrowLeft } from 'lucide-react'
 import '../styles/InsightsPage.css'
 
 export default function InsightsPage() {
-  const { studentId, studentClass } = useStudent()
+  const { studentId } = useStudent()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'peers' | 'forecast' | 'career' | 'resources'>('forecast')
   const [peers, setPeers] = useState<any>(null)
