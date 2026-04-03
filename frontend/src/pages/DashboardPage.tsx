@@ -2,7 +2,8 @@
 import { useNavigate } from 'react-router-dom'
 import { studentAPI, curriculumAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { LogOut, BookOpen, BarChart3, MessageCircle, Pencil, Save, X, Moon, Sun, Flame, Download, Trophy, Heart, Sparkles, TrendingUp, Bell, Search, FileText } from 'lucide-react'
+import { LogOut, BookOpen, BarChart3, MessageCircle, Pencil, Save, X, Moon, Sun, Flame, Download, Trophy, Heart, Sparkles, TrendingUp, Bell, Search, FileText, AlertTriangle } from 'lucide-react'
+import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import html2pdf from 'html2pdf.js'
 import '../styles/DashboardPage.css'
 
@@ -45,46 +46,7 @@ function scoreColor(pct: number) {
   return '#ef4444'
 }
 
-// SVG donut chart for Avg Score
-function DonutChart({ pct, color }: { pct: number; color: string }) {
-  const r = 40
-  const circ = 2 * Math.PI * r
-  const dash = (pct / 100) * circ
-  return (
-    <svg viewBox="0 0 100 100" className="donut-svg">
-      <circle cx="50" cy="50" r={r} fill="none" stroke="#e5e7eb" strokeWidth="12" />
-      <circle cx="50" cy="50" r={r} fill="none" stroke={color} strokeWidth="12"
-        strokeDasharray={`${dash} ${circ}`} strokeDashoffset={circ * 0.25}
-        strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.6s ease' }} />
-      <text x="50" y="56" textAnchor="middle" fontSize="18" fontWeight="700" fill={color}>{pct}%</text>
-    </svg>
-  )
-}
-
-// SVG gauge (speedometer) for Performance
-function GaugeChart({ pct, label }: { pct: number; label: string }) {
-  const color = scoreColor(pct)
-  // arc from -135Â° to +135Â° (270Â° total sweep)
-  const toXY = (deg: number, r: number) => {
-    const rad = (deg * Math.PI) / 180
-    return { x: 50 + r * Math.cos(rad), y: 50 + r * Math.sin(rad) }
-  }
-  const start = toXY(-135, 35)
-  const end   = toXY(135, 35)
-  const fillDeg = -135 + (pct / 100) * 270
-  const fillEnd = toXY(fillDeg, 35)
-  const large = pct > 50 ? 1 : 0
-  return (
-    <svg viewBox="0 0 100 80" className="gauge-svg">
-      <path d={`M ${start.x} ${start.y} A 35 35 0 1 1 ${end.x} ${end.y}`}
-        fill="none" stroke="#e5e7eb" strokeWidth="10" strokeLinecap="round" />
-      <path d={`M ${start.x} ${start.y} A 35 35 0 ${large} 1 ${fillEnd.x} ${fillEnd.y}`}
-        fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
-        style={{ transition: 'stroke-dasharray 0.6s ease' }} />
-      <text x="50" y="62" textAnchor="middle" fontSize="9" fill={color} fontWeight="700">{label}</text>
-    </svg>
-  )
-}
+// no custom chart components — using Recharts directly
 
 export default function DashboardPage() {
   const [results, setResults] = useState<Record<string, CourseResult> | null>(null)
@@ -311,10 +273,10 @@ export default function DashboardPage() {
           {/* Critical Alert */}
           {!alertDismissed && lowScoreAlerts.length > 0 && (
             <div className="db-alert">
-              <div className="db-alert-icon">âš ï¸</div>
+              <div className="db-alert-icon"><AlertTriangle size={20} color="#dc2626" /></div>
               <div className="db-alert-text">
                 <strong>CRITICAL ALERT:</strong> Your recent assessment{lowScoreAlerts.length > 1 ? 's are' : ' is'} below 50%
-                <div className="db-alert-detail">{lowScoreAlerts.slice(0, 2).join(' Â· ')}{lowScoreAlerts.length > 2 ? ` +${lowScoreAlerts.length - 2} more` : ''}</div>
+                <div className="db-alert-detail">{lowScoreAlerts.slice(0, 2).join(' · ')}{lowScoreAlerts.length > 2 ? ` +${lowScoreAlerts.length - 2} more` : ''}</div>
               </div>
               <div className="db-alert-actions">
                 <button className="db-alert-btn-primary" onClick={() => navigate('/counselor')}>Revise with AI Counselor</button>
@@ -333,27 +295,50 @@ export default function DashboardPage() {
                 <div className="db-stat-card">
                   <div className="db-stat-header">
                     <span className="db-stat-label">Total Marks</span>
-                    <span className="db-stat-more">â‹¯</span>
                   </div>
                   <div className="db-stat-value">{currentResult.total_marks}</div>
-                  <div className="db-stat-sparkline">
-                    {currentAssessments.slice(-6).map(([key, m], i) => {
-                      const maxM = currentResult.max_marks_map?.[key]
-                      const h = maxM ? Math.max(4, Math.round((m / maxM) * 40)) : 20
-                      const c = maxM ? scoreColor(Math.round((m / maxM) * 100)) : '#667eea'
-                      return <div key={i} className="db-spark-bar" style={{ height: h, background: c }} />
-                    })}
-                  </div>
+                  <ResponsiveContainer width="100%" height={65}>
+                    <BarChart
+                      data={currentAssessments.slice(-6).map(([key, m]) => ({
+                        name: key.replace(/assignment/i, 'A').replace(/quiz/i, 'Q'),
+                        pct: currentResult.max_marks_map?.[key]
+                          ? Math.round((m / currentResult.max_marks_map[key]!) * 100) : 0
+                      }))}
+                      margin={{ top: 4, right: 0, left: -30, bottom: 0 }}
+                    >
+                      <Bar dataKey="pct" radius={[4, 4, 0, 0]}>
+                        {currentAssessments.slice(-6).map(([key, m], i) => {
+                          const maxM = currentResult.max_marks_map?.[key]
+                          return <Cell key={i} fill={maxM ? scoreColor(Math.round((m / maxM) * 100)) : '#667eea'} />
+                        })}
+                      </Bar>
+                      <Tooltip formatter={(v: any) => [`${v}%`, 'Score']} contentStyle={{ fontSize: '11px', borderRadius: '6px', border: '1px solid #e5e7eb' }} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
 
                 {/* Performance */}
                 <div className="db-stat-card">
                   <div className="db-stat-header">
                     <span className="db-stat-label">Performance</span>
-                    <span className="db-stat-more">â‹¯</span>
                   </div>
-                  <div className="db-gauge-wrap">
-                    <GaugeChart pct={avgPct} label={currentResult.performance_level} />
+                  <div className="db-donut-wrap">
+                    <ResponsiveContainer width="100%" height={110}>
+                      <PieChart>
+                        <Pie
+                          data={[{ value: avgPct }, { value: 100 - avgPct }]}
+                          cx="50%" cy="50%"
+                          innerRadius={30} outerRadius={46}
+                          startAngle={90} endAngle={-270}
+                          dataKey="value" strokeWidth={0}
+                        >
+                          <Cell fill={scoreColor(avgPct)} />
+                          <Cell fill="#e5e7eb" />
+                        </Pie>
+                        <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" fontSize="14" fontWeight="700" fill={scoreColor(avgPct)}>{avgPct}%</text>
+                        <text x="50%" y="62%" textAnchor="middle" dominantBaseline="middle" fontSize="9" fill="#9ca3af">{currentResult.performance_level}</text>
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
 
@@ -361,10 +346,9 @@ export default function DashboardPage() {
                 <div className="db-stat-card">
                   <div className="db-stat-header">
                     <span className="db-stat-label">Class Rank</span>
-                    <span className="db-stat-more">â‹¯</span>
                   </div>
                   <div className="db-rank-display">
-                    <span className="db-rank-trophy">ðŸ…</span>
+                    <Trophy size={28} color="#f59e0b" />
                     <span className="db-rank-value">{peerRank ? `#${peerRank.rank}` : '--'}</span>
                   </div>
                 </div>
@@ -373,10 +357,23 @@ export default function DashboardPage() {
                 <div className="db-stat-card">
                   <div className="db-stat-header">
                     <span className="db-stat-label">Avg Score</span>
-                    <span className="db-stat-more">â‹¯</span>
                   </div>
                   <div className="db-donut-wrap">
-                    <DonutChart pct={avgPct} color={scoreColor(avgPct)} />
+                    <ResponsiveContainer width="100%" height={110}>
+                      <PieChart>
+                        <Pie
+                          data={[{ value: avgPct }, { value: 100 - avgPct }]}
+                          cx="50%" cy="50%"
+                          innerRadius={30} outerRadius={46}
+                          startAngle={90} endAngle={-270}
+                          dataKey="value" strokeWidth={0}
+                        >
+                          <Cell fill={scoreColor(avgPct)} />
+                          <Cell fill="#e5e7eb" />
+                        </Pie>
+                        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fontSize="16" fontWeight="800" fill={scoreColor(avgPct)}>{avgPct}%</text>
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
               </div>
@@ -420,7 +417,7 @@ export default function DashboardPage() {
                             </div>
                           ) : (
                             <div className="db-curriculum-row">
-                              {curriculum && <p className="db-curriculum-text">ðŸ“š {curriculum}</p>}
+                              {curriculum && <p className="db-curriculum-text"><BookOpen size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />{curriculum}</p>}
                               <button onClick={() => { setEditingCurriculum(assessment); setCurriculumDraft(curriculum || '') }} className="db-edit-btn">
                                 <Pencil size={12} />
                               </button>
