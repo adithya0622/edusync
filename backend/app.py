@@ -2011,6 +2011,460 @@ async def chat(req: Request, request: ChatRequest):
             encouragement="Taking the first step always matters most."
         )
 
+
+# ============================================================
+# ==================== GAMIFICATION ==========================
+# ============================================================
+
+def compute_achievements(roll_no: str) -> dict:
+    """Compute badges, XP and level for a student based on their data."""
+    badges = []
+    xp = 0
+    try:
+        df = pd.read_excel(STUDENTS_FILE)
+        df.columns = [c.strip() for c in df.columns]
+        roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
+        if roll_col:
+            row = df[df[roll_col].astype(str).str.strip().str.upper() == str(roll_no).strip().upper()]
+            if not row.empty:
+                mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment','midterm','internal','marks','test','exam'])]
+                for col in mark_cols:
+                    try:
+                        val = float(row.iloc[0][col])
+                        max_val = df[col].max()
+                        if max_val > 0 and val / max_val >= 0.9:
+                            xp += 50
+                        elif max_val > 0 and val / max_val >= 0.75:
+                            xp += 30
+                        elif max_val > 0 and val / max_val >= 0.5:
+                            xp += 15
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    # Assign badges based on XP
+    if xp >= 300:
+        badges.append({"name": "🏆 Legend", "description": "Consistent top performer across all subjects"})
+    if xp >= 200:
+        badges.append({"name": "🌟 Star Scholar", "description": "Exceptionally strong across subjects"})
+    if xp >= 150:
+        badges.append({"name": "🔥 High Achiever", "description": "Outstanding academic performance"})
+    if xp >= 100:
+        badges.append({"name": "📈 Rising Star", "description": "Strong and improving performer"})
+    if xp >= 50:
+        badges.append({"name": "✅ Hard Worker", "description": "Consistent effort across assessments"})
+    if xp < 50:
+        badges.append({"name": "🚀 Rookie", "description": "Just getting started — keep going!"})
+
+    level = min(10, max(1, xp // 50 + 1))
+    return {"badges": badges, "xp": xp, "level": level, "next_level_xp": (level * 50)}
+
+
+@app.get("/api/student/{roll_no}/achievements")
+def get_achievements(roll_no: str, api_key: str = Depends(verify_api_key)):
+    data = compute_achievements(roll_no)
+    return {"roll_no": mask_roll_no(roll_no), **data}
+
+
+@app.get("/api/leaderboard")
+def get_leaderboard(class_name: Optional[str] = None, api_key: str = Depends(verify_api_key)):
+    try:
+        df = pd.read_excel(STUDENTS_FILE)
+        df.columns = [c.strip() for c in df.columns]
+        roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
+        name_col = next((c for c in df.columns if 'name' in c.lower()), None)
+        class_col = next((c for c in df.columns if 'class' in c.lower() or 'section' in c.lower()), None)
+
+        if class_name and class_col:
+            df = df[df[class_col].astype(str).str.strip().str.upper() == class_name.strip().upper()]
+
+        mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment','midterm','internal','marks','test','exam'])]
+        if not mark_cols:
+            return {"leaderboard": []}
+
+        df['_total'] = df[mark_cols].apply(pd.to_numeric, errors='coerce').sum(axis=1)
+        df = df.sort_values('_total', ascending=False).head(10).reset_index(drop=True)
+
+        board = []
+        for i, row in df.iterrows():
+            roll = str(row[roll_col]).strip() if roll_col else f"S{i+1}"
+            name = str(row[name_col]).strip() if name_col else "Student"
+            achieve = compute_achievements(roll)
+            board.append({
+                "rank": i + 1,
+                "masked_roll": mask_roll_no(roll),
+                "name": name[:15] + "..." if len(name) > 15 else name,
+                "total": int(row['_total']),
+                "level": achieve["level"],
+                "top_badge": achieve["badges"][0]["name"] if achieve["badges"] else "🚀 Rookie"
+            })
+        return {"leaderboard": board}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# ==================== WELLNESS / BURNOUT DETECTION ==========
+# ============================================================
+
+class WellnessInput(BaseModel):
+    roll_no: str
+    study_hours_per_day: float = Field(..., ge=0, le=24)
+    sleep_hours_per_day: float = Field(..., ge=0, le=24)
+    stress_level: int = Field(..., ge=1, le=10)   # 1 = calm, 10 = extreme stress
+    missed_classes_this_week: int = Field(0, ge=0, le=7)
+    energy_level: int = Field(..., ge=1, le=10)    # 1 = exhausted, 10 = full energy
+
+@app.post("/api/student/wellness-check")
+def wellness_check(data: WellnessInput, api_key: str = Depends(verify_api_key)):
+    score = 0
+    risks = []
+    tips = []
+
+    # Burnout risk scoring
+    if data.sleep_hours_per_day < 6:
+        score += 30
+        risks.append("Severely low sleep — cognitive performance drops by 40%+")
+        tips.append("Prioritise 7–8 hours of sleep. Even a 20-min nap boosts memory consolidation.")
+    elif data.sleep_hours_per_day < 7:
+        score += 15
+        risks.append("Slightly low sleep — affects concentration and recall")
+        tips.append("Try to add 30–45 mins to your sleep schedule this week.")
+
+    if data.stress_level >= 8:
+        score += 30
+        risks.append("Very high stress — may impair decision-making and exam performance")
+        tips.append("Practice 5-min breathing exercises twice daily. Talk to our counselor now.")
+    elif data.stress_level >= 6:
+        score += 15
+        risks.append("Moderate-high stress — watch for build-up")
+        tips.append("Take a 10-min walk or stretch break every 2 hours of study.")
+
+    if data.study_hours_per_day > 10:
+        score += 20
+        risks.append("Studying too many hours — diminishing returns after 6–7 focused hours")
+        tips.append("Use Pomodoro: 25 min study, 5 min break. Quality beats quantity.")
+    elif data.study_hours_per_day > 8:
+        score += 10
+
+    if data.energy_level <= 3:
+        score += 20
+        risks.append("Very low energy — possible early burnout sign")
+        tips.append("Eat nutritious meals, hydrate, and incorporate light exercise into your routine.")
+    elif data.energy_level <= 5:
+        score += 10
+
+    if data.missed_classes_this_week >= 3:
+        score += 15
+        risks.append("Frequent class absences — falling behind may multiply stress")
+        tips.append("Reconnect with classmates for notes. Small catch-up steps prevent big gaps.")
+
+    # Academic context from Excel
+    try:
+        df = pd.read_excel(STUDENTS_FILE)
+        df.columns = [c.strip() for c in df.columns]
+        roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
+        if roll_col:
+            row = df[df[roll_col].astype(str).str.strip().str.upper() == data.roll_no.strip().upper()]
+            if not row.empty:
+                mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment','midterm','internal','marks','test','exam'])]
+                vals = [row.iloc[0][c] for c in mark_cols]
+                numeric_vals = [float(v) for v in vals if str(v).replace('.','').isdigit()]
+                if numeric_vals and (sum(numeric_vals)/len(numeric_vals)) < 40:
+                    score += 15
+                    risks.append("Low academic scores combined with current habits — spiral risk detected")
+                    tips.append("Seek academic support early. One topic at a time. You can recover.")
+    except Exception:
+        pass
+
+    if score >= 60:
+        level = "HIGH"
+        message = "⚠️ High burnout risk detected. Please speak to a counselor immediately and reduce workload."
+        color = "#ef4444"
+    elif score >= 35:
+        level = "MODERATE"
+        message = "⚡ Moderate burnout risk. Take preventive action this week before it escalates."
+        color = "#f59e0b"
+    else:
+        level = "LOW"
+        message = "✅ You're in a healthy zone. Keep maintaining your balance!"
+        color = "#22c55e"
+
+    return {
+        "burnout_score": score,
+        "risk_level": level,
+        "message": message,
+        "color": color,
+        "risk_factors": risks,
+        "action_tips": tips,
+        "counselor_recommended": score >= 60
+    }
+
+
+# ============================================================
+# ==================== PEER MATCHING =========================
+# ============================================================
+
+@app.get("/api/student/{roll_no}/study-buddies")
+def find_study_buddies(roll_no: str, api_key: str = Depends(verify_api_key)):
+    try:
+        df = pd.read_excel(STUDENTS_FILE)
+        df.columns = [c.strip() for c in df.columns]
+        roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
+        name_col = next((c for c in df.columns if 'name' in c.lower()), None)
+        class_col = next((c for c in df.columns if 'class' in c.lower() or 'section' in c.lower()), None)
+        mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment','midterm','internal','marks','test','exam'])]
+
+        if not roll_col or not mark_cols:
+            return {"buddies": [], "message": "Insufficient data for peer matching"}
+
+        target_row = df[df[roll_col].astype(str).str.strip().str.upper() == roll_no.strip().upper()]
+        if target_row.empty:
+            return {"buddies": [], "message": "Student not found"}
+
+        target_class = str(target_row.iloc[0][class_col]).strip() if class_col else None
+        class_df = df[df[class_col].astype(str).str.strip() == target_class] if class_col and target_class else df
+
+        # Find subject-wise weak and strong areas for target
+        target_scores = {}
+        for col in mark_cols:
+            try:
+                val = float(target_row.iloc[0][col])
+                max_val = class_df[col].apply(pd.to_numeric, errors='coerce').max()
+                target_scores[col] = val / max_val if max_val > 0 else 0
+            except Exception:
+                target_scores[col] = 0
+
+        weak_subjects = [k for k, v in sorted(target_scores.items(), key=lambda x: x[1])[:2]]
+
+        # Find peers who are strong where target is weak
+        buddies = []
+        for _, peer_row in class_df.iterrows():
+            peer_roll = str(peer_row[roll_col]).strip()
+            if peer_roll.upper() == roll_no.strip().upper():
+                continue
+            peer_strong = 0
+            for subj in weak_subjects:
+                try:
+                    peer_val = float(peer_row[subj])
+                    max_val = class_df[subj].apply(pd.to_numeric, errors='coerce').max()
+                    if max_val > 0 and peer_val / max_val >= 0.75:
+                        peer_strong += 1
+                except Exception:
+                    pass
+            if peer_strong > 0:
+                peer_name = str(peer_row[name_col]).strip() if name_col else "Peer"
+                peer_achieve = compute_achievements(peer_roll)
+                buddies.append({
+                    "masked_roll": mask_roll_no(peer_roll),
+                    "name": peer_name[:15] + "..." if len(peer_name) > 15 else peer_name,
+                    "strong_in": [s.replace("_", " ").title() for s in weak_subjects[:peer_strong]],
+                    "level": peer_achieve["level"],
+                    "top_badge": peer_achieve["badges"][0]["name"] if peer_achieve["badges"] else "🚀 Rookie",
+                    "compatibility": f"{min(100, peer_strong * 50)}%"
+                })
+
+        buddies = sorted(buddies, key=lambda x: int(x["compatibility"].replace("%", "")), reverse=True)[:5]
+        return {
+            "buddies": buddies,
+            "your_weak_subjects": [s.replace("_", " ").title() for s in weak_subjects],
+            "message": f"Found {len(buddies)} compatible study buddies in your class!"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# ==================== PERFORMANCE FORECASTING ===============
+# ============================================================
+
+@app.get("/api/student/{roll_no}/forecast")
+def forecast_performance(roll_no: str, api_key: str = Depends(verify_api_key)):
+    try:
+        df = pd.read_excel(STUDENTS_FILE)
+        df.columns = [c.strip() for c in df.columns]
+        roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
+
+        if not roll_col:
+            return {"forecast": "Insufficient data"}
+
+        row = df[df[roll_col].astype(str).str.strip().str.upper() == roll_no.strip().upper()]
+        if row.empty:
+            return {"forecast": "Student not found"}
+
+        mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment','midterm','internal','marks','test','exam'])]
+        scores = []
+        for col in mark_cols:
+            try:
+                val = float(row.iloc[0][col])
+                max_val = df[col].apply(pd.to_numeric, errors='coerce').max()
+                scores.append(val / max_val * 100 if max_val > 0 else 0)
+            except Exception:
+                pass
+
+        if not scores:
+            return {"forecast": "No data available"}
+
+        avg = sum(scores) / len(scores)
+        trend = (scores[-1] - scores[0]) / len(scores) if len(scores) > 1 else 0
+
+        # Forecast final exam score
+        forecast_score = min(100, max(0, avg + trend * 2))
+
+        if forecast_score >= 80:
+            grade = "A"
+            message = "🌟 Excellent trajectory! You're on track for distinction."
+            actions = ["Maintain current study habits", "Help peers to solidify your own understanding", "Target 90%+ by revising weak topics"]
+        elif forecast_score >= 65:
+            grade = "B"
+            message = "📈 Good progress! A focused effort can push you to A grade."
+            actions = ["Spend extra 30 mins daily on your weakest subject", "Redo all low-scoring assessments", "Attempt 2 past papers per subject this week"]
+        elif forecast_score >= 50:
+            grade = "C"
+            message = "⚡ You're passing but there's clear room to improve."
+            actions = ["Identify your 2 weakest topics and focus there", "Join a study group for collaborative learning", "Speak to your teacher about extra help sessions"]
+        else:
+            grade = "D/F"
+            message = "⚠️ At risk of failing. Immediate intervention needed."
+            actions = ["Speak to the counselor and your class teacher today", "Focus on passing marks topics first", "Create a strict daily study schedule with accountability"]
+
+        return {
+            "current_average": round(avg, 1),
+            "trend": "improving" if trend > 0 else "declining" if trend < -1 else "stable",
+            "forecast_score": round(forecast_score, 1),
+            "predicted_grade": grade,
+            "message": message,
+            "action_plan": actions,
+            "scores_history": [round(s, 1) for s in scores]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# ==================== CAREER INSIGHTS =======================
+# ============================================================
+
+@app.get("/api/student/{roll_no}/career-insights")
+def career_insights(roll_no: str, api_key: str = Depends(verify_api_key)):
+    try:
+        df = pd.read_excel(STUDENTS_FILE)
+        df.columns = [c.strip() for c in df.columns]
+        roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
+
+        row = df[df[roll_col].astype(str).str.strip().str.upper() == roll_no.strip().upper()] if roll_col else pd.DataFrame()
+        mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment','midterm','internal','marks','test','exam'])]
+
+        strengths = []
+        if not row.empty:
+            for col in mark_cols:
+                try:
+                    val = float(row.iloc[0][col])
+                    max_val = df[col].apply(pd.to_numeric, errors='coerce').max()
+                    if max_val > 0 and val / max_val >= 0.7:
+                        strengths.append(col.replace("_", " ").title())
+                except Exception:
+                    pass
+
+        career_paths = [
+            {
+                "title": "Software Engineer",
+                "match": "85%" if len(strengths) >= 3 else "65%",
+                "skills_needed": ["Data Structures", "Algorithms", "System Design"],
+                "description": "Build software systems and applications at scale",
+                "salary_range": "₹6L – ₹25L+"
+            },
+            {
+                "title": "Data Scientist / ML Engineer",
+                "match": "78%" if len(strengths) >= 2 else "55%",
+                "skills_needed": ["Statistics", "Python", "Machine Learning"],
+                "description": "Extract insights from data and build AI models",
+                "salary_range": "₹8L – ₹30L+"
+            },
+            {
+                "title": "Cybersecurity Analyst",
+                "match": "72%",
+                "skills_needed": ["Networking", "Cryptography", "Security Protocols"],
+                "description": "Protect systems and data from cyber threats",
+                "salary_range": "₹5L – ₹20L+"
+            },
+            {
+                "title": "Product Manager",
+                "match": "68%",
+                "skills_needed": ["Communication", "Analytics", "Strategy"],
+                "description": "Define product vision and lead cross-functional teams",
+                "salary_range": "₹10L – ₹35L+"
+            },
+            {
+                "title": "Research Scientist",
+                "match": "60%",
+                "skills_needed": ["Research Methods", "Publication Writing", "Deep Expertise"],
+                "description": "Advance knowledge through academic and industrial research",
+                "salary_range": "₹4L – ₹20L+"
+            }
+        ]
+
+        return {
+            "your_strengths": strengths[:5],
+            "career_paths": career_paths,
+            "recommendation": "Based on your academic profile, Software Engineering and Data Science are your strongest fits.",
+            "next_steps": [
+                "Build 2-3 projects on GitHub this semester",
+                "Obtain one relevant certification (AWS, ML, Security)",
+                "Participate in hackathons to gain practical experience",
+                "Connect with alumni in your target field"
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# ==================== RESOURCE RECOMMENDATIONS ==============
+# ============================================================
+
+@app.get("/api/student/{roll_no}/resources")
+def get_resources(roll_no: str, api_key: str = Depends(verify_api_key)):
+    try:
+        df = pd.read_excel(STUDENTS_FILE)
+        df.columns = [c.strip() for c in df.columns]
+        roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
+
+        weak_subjects = []
+        if roll_col:
+            row = df[df[roll_col].astype(str).str.strip().str.upper() == roll_no.strip().upper()]
+            if not row.empty:
+                mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment','midterm','internal','marks','test','exam'])]
+                for col in mark_cols:
+                    try:
+                        val = float(row.iloc[0][col])
+                        max_val = df[col].apply(pd.to_numeric, errors='coerce').max()
+                        if max_val > 0 and val / max_val < 0.5:
+                            weak_subjects.append(col.replace("_", " ").title())
+                    except Exception:
+                        pass
+
+        resource_map = {
+            "default": [
+                {"type": "📹 Video", "title": "CS Fundamentals – MIT OpenCourseWare", "url": "https://ocw.mit.edu", "difficulty": "Intermediate"},
+                {"type": "📚 Course", "title": "NPTEL Free Engineering Courses", "url": "https://nptel.ac.in", "difficulty": "All levels"},
+                {"type": "💻 Practice", "title": "LeetCode – Coding Practice", "url": "https://leetcode.com", "difficulty": "Beginner–Advanced"},
+                {"type": "📖 Book", "title": "GeeksForGeeks Articles", "url": "https://www.geeksforgeeks.org", "difficulty": "All levels"},
+                {"type": "🎓 Certificate", "title": "Coursera – Free Audit Options", "url": "https://www.coursera.org", "difficulty": "All levels"},
+                {"type": "🔬 Research", "title": "Google Scholar", "url": "https://scholar.google.com", "difficulty": "Advanced"}
+            ]
+        }
+
+        return {
+            "weak_subjects": weak_subjects,
+            "resources": resource_map["default"],
+            "personalised_tip": f"Focus on: {', '.join(weak_subjects[:2])}" if weak_subjects else "You're performing well! Explore advanced topics to stay ahead.",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)

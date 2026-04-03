@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { studentAPI, curriculumAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { LogOut, TrendingUp, BookOpen, Award, Lightbulb, CheckCircle, BarChart3, MessageCircle, Pencil, Save, X, Moon, Sun, Flame, Download, Users } from 'lucide-react'
+import { LogOut, TrendingUp, BookOpen, Award, Lightbulb, CheckCircle, BarChart3, MessageCircle, Pencil, Save, X, Moon, Sun, Flame, Download, Users, Trophy, Heart, Sparkles } from 'lucide-react'
 import html2pdf from 'html2pdf.js'
 import '../styles/DashboardPage.css'
 
@@ -272,6 +272,18 @@ export default function DashboardPage() {
             <button onClick={() => navigate('/counselor')} className="btn-counselor">
               <MessageCircle size={18} />
               <span>AI Counselor</span>
+            </button>
+            <button onClick={() => navigate('/achievements')} className="btn-achievements" style={{background:'linear-gradient(135deg,#7c3aed,#a78bfa)',border:'none',color:'white',padding:'8px 14px',borderRadius:'10px',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px',fontSize:'0.85rem',fontWeight:600}}>
+              <Trophy size={18} />
+              <span>Achievements</span>
+            </button>
+            <button onClick={() => navigate('/wellness')} className="btn-wellness" style={{background:'linear-gradient(135deg,#ec4899,#f43f5e)',border:'none',color:'white',padding:'8px 14px',borderRadius:'10px',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px',fontSize:'0.85rem',fontWeight:600}}>
+              <Heart size={18} />
+              <span>Wellness</span>
+            </button>
+            <button onClick={() => navigate('/insights')} className="btn-insights" style={{background:'linear-gradient(135deg,#0891b2,#06b6d4)',border:'none',color:'white',padding:'8px 14px',borderRadius:'10px',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px',fontSize:'0.85rem',fontWeight:600}}>
+              <Sparkles size={18} />
+              <span>Insights</span>
             </button>
             <button onClick={handleLogout} className="btn-logout">
               <LogOut size={18} />

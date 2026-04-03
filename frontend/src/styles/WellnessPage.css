@@ -1,0 +1,29 @@
+.well-page { min-height: 100vh; background: linear-gradient(135deg, #0a1628, #1a2744, #0a1628); color: white; padding: 20px; }
+.well-header { text-align: center; margin-bottom: 32px; }
+.well-header h1 { font-size: 1.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; color: #f9a8d4; }
+.well-header p { color: rgba(255,255,255,0.6); margin-top: 8px; }
+.well-back { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.well-back:hover { background: rgba(255,255,255,0.2); }
+.well-container { max-width: 600px; margin: 0 auto; }
+.well-form { background: rgba(255,255,255,0.07); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 20px; }
+.well-field { display: flex; flex-direction: column; gap: 6px; }
+.well-field label { font-size: 0.95rem; color: rgba(255,255,255,0.8); }
+.well-field label strong { color: #f9a8d4; }
+.well-field input[type=range] { width: 100%; accent-color: #f9a8d4; }
+.well-range-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.4); }
+.well-btn { background: linear-gradient(135deg, #ec4899, #f43f5e); border: none; color: white; padding: 14px 28px; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.2s; margin-top: 8px; }
+.well-btn:hover:not(:disabled) { transform: translateY(-2px); }
+.well-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.well-result { display: flex; flex-direction: column; gap: 20px; }
+.well-gauge { background: rgba(255,255,255,0.07); border: 3px solid; border-radius: 50%; width: 160px; height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto; position: relative; }
+.well-score { font-size: 2.5rem; font-weight: 800; }
+.well-score-label { font-size: 0.75rem; color: rgba(255,255,255,0.6); }
+.well-risk { position: absolute; bottom: -14px; border-radius: 12px; padding: 3px 12px; font-size: 0.75rem; font-weight: 700; color: white; }
+.well-message { background: rgba(255,255,255,0.07); border-radius: 12px; padding: 16px; font-size: 1rem; text-align: center; margin-top: 12px; }
+.well-section { background: rgba(255,255,255,0.07); border-radius: 12px; padding: 16px; }
+.well-section h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; color: #f9a8d4; }
+.well-section ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.well-section li { font-size: 0.9rem; color: rgba(255,255,255,0.8); }
+.well-alert { background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(239,68,68,0.05)); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
+.well-counselor-btn { background: #ef4444; border: none; color: white; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+.well-counselor-btn:hover { background: #dc2626; }

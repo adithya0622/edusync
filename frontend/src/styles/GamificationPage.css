@@ -1,0 +1,41 @@
+.gam-page { min-height: 100vh; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: white; padding: 20px; }
+.gam-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+.gam-header h1 { font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.gam-back { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s; }
+.gam-back:hover { background: rgba(255,255,255,0.2); }
+.gam-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; color: white; gap: 16px; }
+.gam-spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #a78bfa; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.gam-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.gam-card { background: rgba(255,255,255,0.07); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 24px; }
+.gam-card h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #c4b5fd; }
+.gam-xp-card { text-align: center; }
+.gam-level-badge { background: linear-gradient(135deg, #7c3aed, #a78bfa); border-radius: 24px; padding: 4px 16px; font-size: 0.85rem; font-weight: 700; display: inline-block; margin-bottom: 10px; }
+.gam-xp-card h2 { justify-content: center; font-size: 2rem; color: #fbbf24; }
+.gam-progress-bar { background: rgba(255,255,255,0.1); border-radius: 8px; height: 12px; margin: 12px 0; overflow: hidden; }
+.gam-progress-fill { background: linear-gradient(90deg, #7c3aed, #a78bfa); height: 100%; border-radius: 8px; transition: width 0.6s ease; }
+.gam-xp-card p { color: rgba(255,255,255,0.6); font-size: 0.9rem; }
+.gam-badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.gam-badge-item { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; text-align: center; transition: transform 0.2s; }
+.gam-badge-item:hover { transform: translateY(-2px); }
+.gam-badge-emoji { font-size: 2rem; margin-bottom: 6px; }
+.gam-badge-name { font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; }
+.gam-badge-desc { font-size: 0.75rem; color: rgba(255,255,255,0.5); }
+.gam-leaderboard { display: flex; flex-direction: column; gap: 8px; }
+.gam-lb-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; background: rgba(255,255,255,0.05); transition: background 0.2s; }
+.gam-lb-row:hover { background: rgba(255,255,255,0.1); }
+.gam-top-1 { background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(251,191,36,0.05)) !important; border: 1px solid rgba(251,191,36,0.3); }
+.gam-top-2 { background: linear-gradient(135deg, rgba(148,163,184,0.2), rgba(148,163,184,0.05)) !important; border: 1px solid rgba(148,163,184,0.3); }
+.gam-top-3 { background: linear-gradient(135deg, rgba(205,127,50,0.2), rgba(205,127,50,0.05)) !important; border: 1px solid rgba(205,127,50,0.3); }
+.gam-lb-rank { width: 36px; text-align: center; font-size: 1.2rem; }
+.gam-lb-info { flex: 1; }
+.gam-lb-name { font-weight: 600; display: block; }
+.gam-lb-badge { font-size: 0.75rem; color: rgba(255,255,255,0.5); }
+.gam-lb-score { text-align: right; }
+.gam-lb-total { display: block; font-weight: 700; color: #a78bfa; }
+.gam-lb-level { font-size: 0.75rem; color: rgba(255,255,255,0.5); }
+.gam-empty { color: rgba(255,255,255,0.4); text-align: center; padding: 20px; }
+.gam-leaderboard-card { grid-column: span 2; }
+.gam-tips-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.gam-tips-list li { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px 14px; font-size: 0.9rem; }
+@media (max-width: 700px) { .gam-leaderboard-card { grid-column: span 1; } }

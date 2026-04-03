@@ -8,6 +8,9 @@ import CounselorPage from './pages/CounselorPage'
 import RolePage from './pages/RolePage'
 import TeacherLoginPage from './pages/TeacherLoginPage'
 import TeacherDashboardPage from './pages/TeacherDashboardPage'
+import GamificationPage from './pages/GamificationPage'
+import WellnessPage from './pages/WellnessPage'
+import InsightsPage from './pages/InsightsPage'
 import IntroSplash from './components/IntroSplash'
 import './App.css'
 
@@ -30,6 +33,9 @@ function App() {
         <Route path="/counselor" element={<CounselorPage />} />
         <Route path="/teacher/login" element={<TeacherLoginPage />} />
         <Route path="/teacher/dashboard" element={<TeacherDashboardPage />} />
+        <Route path="/achievements" element={<GamificationPage />} />
+        <Route path="/wellness" element={<WellnessPage />} />
+        <Route path="/insights" element={<InsightsPage />} />
       </Routes>
     </Router>
   )

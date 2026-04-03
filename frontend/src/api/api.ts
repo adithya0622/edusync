@@ -133,4 +133,36 @@ export const curriculumAPI = {
     api.put(`/api/curriculum/${encodeURIComponent(sheet_id)}`, { assessment, curriculum }),
 }
 
+export const gamificationAPI = {
+  getAchievements: (rollNo: string) =>
+    api.get(`/api/student/${encodeURIComponent(rollNo)}/achievements`),
+  getLeaderboard: (className?: string) =>
+    api.get('/api/leaderboard', { params: className ? { class_name: className } : {} }),
+}
+
+export const wellnessAPI = {
+  check: (data: { roll_no: string; study_hours_per_day: number; sleep_hours_per_day: number; stress_level: number; missed_classes_this_week: number; energy_level: number }) =>
+    api.post('/api/student/wellness-check', data),
+}
+
+export const peerAPI = {
+  getBuddies: (rollNo: string) =>
+    api.get(`/api/student/${encodeURIComponent(rollNo)}/study-buddies`),
+}
+
+export const forecastAPI = {
+  getForecast: (rollNo: string) =>
+    api.get(`/api/student/${encodeURIComponent(rollNo)}/forecast`),
+}
+
+export const careerAPI = {
+  getInsights: (rollNo: string) =>
+    api.get(`/api/student/${encodeURIComponent(rollNo)}/career-insights`),
+}
+
+export const resourceAPI = {
+  getResources: (rollNo: string) =>
+    api.get(`/api/student/${encodeURIComponent(rollNo)}/resources`),
+}
+
 export default api
