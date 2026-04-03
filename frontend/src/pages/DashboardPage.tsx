@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { studentAPI, curriculumAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { LogOut, BookOpen, BarChart3, MessageCircle, Pencil, Save, X, Moon, Sun, Flame, Download, Trophy, Heart, Sparkles, TrendingUp, Bell, Search } from 'lucide-react'
+import { LogOut, BookOpen, BarChart3, MessageCircle, Pencil, Save, X, Moon, Sun, Flame, Download, Trophy, Heart, Sparkles, TrendingUp, Bell, Search, FileText } from 'lucide-react'
 import html2pdf from 'html2pdf.js'
 import '../styles/DashboardPage.css'
 
@@ -251,6 +251,9 @@ export default function DashboardPage() {
 
           <button className="db-nav-item" onClick={handleDownloadStudyPlan}>
             <Download size={17} /><span>Study Plan</span>
+          </button>
+          <button className="db-nav-item" onClick={() => navigate('/report')}>
+            <FileText size={17} /><span>Report</span>
           </button>
           <button className="db-nav-item" onClick={() => navigate('/counselor')}>
             <MessageCircle size={17} /><span>AI Counselor</span>
