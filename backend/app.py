@@ -2211,67 +2211,80 @@ def wellness_check(data: WellnessInput):
 @app.get("/api/student/{roll_no}/study-buddies")
 def find_study_buddies(roll_no: str):
     try:
-        df = pd.read_excel(STUDENTS_FILE)
-        df.columns = [c.strip() for c in df.columns]
-        roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
-        name_col = next((c for c in df.columns if 'name' in c.lower()), None)
-        class_col = next((c for c in df.columns if 'class' in c.lower() or 'section' in c.lower()), None)
-        mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment','midterm','internal','marks','test','exam'])]
+        excel_file = pd.ExcelFile(STUDENTS_FILE)
+        all_students: dict = {}   # roll -> {sheet::col: pct_score}
+        name_map: dict = {}
 
-        if not roll_col or not mark_cols:
-            return {"buddies": [], "message": "Insufficient data for peer matching"}
+        for sheet in excel_file.sheet_names:
+            df = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+            df.columns = [c.strip() for c in df.columns]
+            roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
+            name_col = next((c for c in df.columns if 'name' in c.lower()), None)
+            mark_cols = [c for c in df.columns if any(k in c.lower() for k in [
+                'mark', 'score', 'test', 'quiz', 'exam', 'assignment', 'lab'
+            ]) and 'converted' not in c.lower()]
+            if not roll_col or not mark_cols:
+                continue
+            for _, row in df.iterrows():
+                r = str(row[roll_col]).strip()
+                if not r or r.lower() in ('nan', ''):
+                    continue
+                if r not in all_students:
+                    all_students[r] = {}
+                    if name_col:
+                        name_map[r] = str(row[name_col]).strip()
+                for col in mark_cols:
+                    try:
+                        val = float(row[col])
+                        max_val = pd.to_numeric(df[col], errors='coerce').max()
+                        pct = val / max_val if max_val and max_val > 0 else 0
+                        all_students[r][f"{sheet}::{col}"] = pct
+                    except Exception:
+                        pass
 
-        target_row = df[df[roll_col].astype(str).str.strip().str.upper() == roll_no.strip().upper()]
-        if target_row.empty:
-            return {"buddies": [], "message": "Student not found"}
+        # Find the requesting student (case-insensitive)
+        target_key = next((k for k in all_students if k.upper() == roll_no.strip().upper()), None)
+        if not target_key or not all_students[target_key]:
+            return {"buddies": [], "message": "Insufficient data for peer matching", "your_weak_subjects": []}
 
-        target_class = str(target_row.iloc[0][class_col]).strip() if class_col else None
-        class_df = df[df[class_col].astype(str).str.strip() == target_class] if class_col and target_class else df
+        target_scores = all_students[target_key]
+        # Identify the student's 3 weakest assessment columns
+        sorted_scores = sorted(target_scores.items(), key=lambda x: x[1])
+        weak_keys = [k.split("::")[-1] for k, v in sorted_scores if v < 0.6][:3]
 
-        # Find subject-wise weak and strong areas for target
-        target_scores = {}
-        for col in mark_cols:
-            try:
-                val = float(target_row.iloc[0][col])
-                max_val = class_df[col].apply(pd.to_numeric, errors='coerce').max()
-                target_scores[col] = val / max_val if max_val > 0 else 0
-            except Exception:
-                target_scores[col] = 0
-
-        weak_subjects = [k for k, v in sorted(target_scores.items(), key=lambda x: x[1])[:2]]
-
-        # Find peers who are strong where target is weak
         buddies = []
-        for _, peer_row in class_df.iterrows():
-            peer_roll = str(peer_row[roll_col]).strip()
+        for peer_roll, peer_scores in all_students.items():
             if peer_roll.upper() == roll_no.strip().upper():
                 continue
-            peer_strong = 0
-            for subj in weak_subjects:
-                try:
-                    peer_val = float(peer_row[subj])
-                    max_val = class_df[subj].apply(pd.to_numeric, errors='coerce').max()
-                    if max_val > 0 and peer_val / max_val >= 0.75:
-                        peer_strong += 1
-                except Exception:
-                    pass
-            if peer_strong > 0:
-                peer_name = str(peer_row[name_col]).strip() if name_col else "Peer"
-                peer_achieve = compute_achievements(peer_roll)
-                buddies.append({
-                    "masked_roll": mask_roll_no(peer_roll),
-                    "name": peer_name[:15] + "..." if len(peer_name) > 15 else peer_name,
-                    "strong_in": [s.replace("_", " ").title() for s in weak_subjects[:peer_strong]],
-                    "level": peer_achieve["level"],
-                    "top_badge": peer_achieve["badges"][0]["name"] if peer_achieve["badges"] else "🚀 Rookie",
-                    "compatibility": f"{min(100, peer_strong * 50)}%"
-                })
+            strong_in = []
+            for k, v in peer_scores.items():
+                col_name = k.split("::")[-1]
+                if col_name in weak_keys and v >= 0.70:
+                    label = col_name.replace("_", " ").title()
+                    if label not in strong_in:
+                        strong_in.append(label)
+            if not strong_in:
+                continue
+            compatibility = min(100, len(strong_in) * 40 + 20)
+            peer_achieve = compute_achievements(peer_roll)
+            peer_name = name_map.get(peer_roll, "Peer")
+            buddies.append({
+                "masked_roll": mask_roll_no(peer_roll),
+                "name": peer_name[:15] + "..." if len(peer_name) > 15 else peer_name,
+                "strong_in": strong_in[:3],
+                "level": peer_achieve["level"],
+                "top_badge": peer_achieve["badges"][0]["name"] if peer_achieve.get("badges") else "Rookie",
+                "compatibility": f"{compatibility}%"
+            })
 
         buddies = sorted(buddies, key=lambda x: int(x["compatibility"].replace("%", "")), reverse=True)[:5]
         return {
             "buddies": buddies,
-            "your_weak_subjects": [s.replace("_", " ").title() for s in weak_subjects],
-            "message": f"Found {len(buddies)} compatible study buddies in your class!"
+            "your_weak_subjects": [s.replace("_", " ").title() for s in weak_keys],
+            "message": (
+                f"Found {len(buddies)} compatible study buddies!" if buddies
+                else "No study buddies found yet — keep working on your assessments!"
+            )
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -2284,61 +2297,74 @@ def find_study_buddies(roll_no: str):
 @app.get("/api/student/{roll_no}/forecast")
 def forecast_performance(roll_no: str):
     try:
-        df = pd.read_excel(STUDENTS_FILE)
-        df.columns = [c.strip() for c in df.columns]
-        roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
+        from sklearn.linear_model import LinearRegression
 
-        if not roll_col:
-            return {"forecast": "Insufficient data"}
+        results = get_student_results(roll_no)
+        if not results:
+            return {"forecast_score": 0, "predicted_grade": "N/A", "trend": "stable",
+                    "message": "Student not found", "action_plan": [], "scores_history": []}
 
-        row = df[df[roll_col].astype(str).str.strip().str.upper() == roll_no.strip().upper()]
-        if row.empty:
-            return {"forecast": "Student not found"}
+        # Collect all assessments as percentage scores (chronological order within each course)
+        all_scores = []
+        for course_id, course_data in results.items():
+            marks = course_data.get("marks", {})
+            max_marks_map = course_data.get("max_marks_map", {})
+            for assessment, mark in marks.items():
+                if "converted" in assessment.lower():
+                    continue
+                max_mark = max_marks_map.get(assessment)
+                if max_mark and float(max_mark) > 0:
+                    all_scores.append(round((float(mark) / float(max_mark)) * 100, 1))
 
-        mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment','midterm','internal','marks','test','exam'])]
-        scores = []
-        for col in mark_cols:
-            try:
-                val = float(row.iloc[0][col])
-                max_val = df[col].apply(pd.to_numeric, errors='coerce').max()
-                scores.append(val / max_val * 100 if max_val > 0 else 0)
-            except Exception:
-                pass
+        if not all_scores:
+            return {"forecast_score": 0, "predicted_grade": "N/A", "trend": "stable",
+                    "message": "No score data available", "action_plan": [], "scores_history": []}
 
-        if not scores:
-            return {"forecast": "No data available"}
+        # Fit Linear Regression: index → score to extrapolate trend
+        X = np.array(range(len(all_scores))).reshape(-1, 1)
+        y = np.array(all_scores)
+        model = LinearRegression()
+        model.fit(X, y)
+        slope = float(model.coef_[0])
+        predicted_raw = float(model.predict(np.array([[len(all_scores)]]))[0])
+        predicted = min(100.0, max(0.0, predicted_raw))
+        avg = round(float(np.mean(y)), 1)
 
-        avg = sum(scores) / len(scores)
-        trend = (scores[-1] - scores[0]) / len(scores) if len(scores) > 1 else 0
+        trend = "improving" if slope > 1.0 else ("declining" if slope < -1.0 else "stable")
 
-        # Forecast final exam score
-        forecast_score = min(100, max(0, avg + trend * 2))
-
-        if forecast_score >= 80:
-            grade = "A"
-            message = "🌟 Excellent trajectory! You're on track for distinction."
-            actions = ["Maintain current study habits", "Help peers to solidify your own understanding", "Target 90%+ by revising weak topics"]
-        elif forecast_score >= 65:
-            grade = "B"
-            message = "📈 Good progress! A focused effort can push you to A grade."
-            actions = ["Spend extra 30 mins daily on your weakest subject", "Redo all low-scoring assessments", "Attempt 2 past papers per subject this week"]
-        elif forecast_score >= 50:
-            grade = "C"
-            message = "⚡ You're passing but there's clear room to improve."
-            actions = ["Identify your 2 weakest topics and focus there", "Join a study group for collaborative learning", "Speak to your teacher about extra help sessions"]
+        if predicted >= 80:
+            grade, message, actions = (
+                "A",
+                "Excellent trajectory! You're on track for distinction.",
+                ["Maintain current study habits", "Help peers to solidify your own understanding", "Target 90%+ by revising weak topics"]
+            )
+        elif predicted >= 65:
+            grade, message, actions = (
+                "B",
+                "Good progress! A focused effort can push you to A grade.",
+                ["Spend extra 30 mins daily on your weakest subject", "Redo all low-scoring assessments", "Attempt 2 past papers per subject this week"]
+            )
+        elif predicted >= 50:
+            grade, message, actions = (
+                "C",
+                "You're passing but there's clear room to improve.",
+                ["Identify your 2 weakest topics and focus there", "Join a study group for collaborative learning", "Speak to your teacher about extra help sessions"]
+            )
         else:
-            grade = "D/F"
-            message = "⚠️ At risk of failing. Immediate intervention needed."
-            actions = ["Speak to the counselor and your class teacher today", "Focus on passing marks topics first", "Create a strict daily study schedule with accountability"]
+            grade, message, actions = (
+                "D/F",
+                "At risk of failing. Immediate intervention recommended.",
+                ["Speak to the counselor and your class teacher today", "Focus on passing-mark topics first", "Create a strict daily study schedule"]
+            )
 
         return {
-            "current_average": round(avg, 1),
-            "trend": "improving" if trend > 0 else "declining" if trend < -1 else "stable",
-            "forecast_score": round(forecast_score, 1),
+            "current_average": avg,
+            "trend": trend,
+            "forecast_score": round(predicted, 1),
             "predicted_grade": grade,
             "message": message,
             "action_plan": actions,
-            "scores_history": [round(s, 1) for s in scores]
+            "scores_history": all_scores[-8:]
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -2351,23 +2377,28 @@ def forecast_performance(roll_no: str):
 @app.get("/api/student/{roll_no}/career-insights")
 def career_insights(roll_no: str):
     try:
-        df = pd.read_excel(STUDENTS_FILE)
-        df.columns = [c.strip() for c in df.columns]
-        roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
+        from urllib.parse import quote_plus
 
-        row = df[df[roll_col].astype(str).str.strip().str.upper() == roll_no.strip().upper()] if roll_col else pd.DataFrame()
-        mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment','midterm','internal','marks','test','exam'])]
-
+        results = get_student_results(roll_no)
         strengths = []
-        if not row.empty:
-            for col in mark_cols:
-                try:
-                    val = float(row.iloc[0][col])
-                    max_val = df[col].apply(pd.to_numeric, errors='coerce').max()
-                    if max_val > 0 and val / max_val >= 0.7:
-                        strengths.append(col.replace("_", " ").title())
-                except Exception:
-                    pass
+        if results:
+            for course_id, course_data in results.items():
+                marks = course_data.get("marks", {})
+                max_marks_map = course_data.get("max_marks_map", {})
+                for assessment, mark in marks.items():
+                    if "converted" in assessment.lower():
+                        continue
+                    try:
+                        max_mark = float(max_marks_map.get(assessment, 0))
+                        if max_mark > 0 and float(mark) / max_mark >= 0.7:
+                            label = assessment.replace("_", " ").title()
+                            if label not in strengths:
+                                strengths.append(label)
+                    except Exception:
+                        pass
+
+        def li_url(title: str) -> str:
+            return f"https://www.linkedin.com/jobs/search/?keywords={quote_plus(title)}&location=India&f_TPR=r2592000"
 
         career_paths = [
             {
@@ -2375,35 +2406,48 @@ def career_insights(roll_no: str):
                 "match": "85%" if len(strengths) >= 3 else "65%",
                 "skills_needed": ["Data Structures", "Algorithms", "System Design"],
                 "description": "Build software systems and applications at scale",
-                "salary_range": "₹6L – ₹25L+"
+                "salary_range": "₹6L – ₹25L+",
+                "linkedin_url": li_url("Software Engineer")
             },
             {
-                "title": "Data Scientist / ML Engineer",
+                "title": "Data Scientist",
                 "match": "78%" if len(strengths) >= 2 else "55%",
                 "skills_needed": ["Statistics", "Python", "Machine Learning"],
-                "description": "Extract insights from data and build AI models",
-                "salary_range": "₹8L – ₹30L+"
+                "description": "Extract insights from data and build predictive AI models",
+                "salary_range": "₹8L – ₹30L+",
+                "linkedin_url": li_url("Data Scientist")
+            },
+            {
+                "title": "ML Engineer",
+                "match": "75%",
+                "skills_needed": ["Python", "TensorFlow", "MLOps", "Cloud"],
+                "description": "Deploy and maintain machine learning systems in production",
+                "salary_range": "₹10L – ₹32L+",
+                "linkedin_url": li_url("Machine Learning Engineer")
             },
             {
                 "title": "Cybersecurity Analyst",
                 "match": "72%",
                 "skills_needed": ["Networking", "Cryptography", "Security Protocols"],
                 "description": "Protect systems and data from cyber threats",
-                "salary_range": "₹5L – ₹20L+"
+                "salary_range": "₹5L – ₹20L+",
+                "linkedin_url": li_url("Cybersecurity Analyst")
             },
             {
                 "title": "Product Manager",
                 "match": "68%",
                 "skills_needed": ["Communication", "Analytics", "Strategy"],
                 "description": "Define product vision and lead cross-functional teams",
-                "salary_range": "₹10L – ₹35L+"
+                "salary_range": "₹10L – ₹35L+",
+                "linkedin_url": li_url("Product Manager Technology")
             },
             {
                 "title": "Research Scientist",
                 "match": "60%",
                 "skills_needed": ["Research Methods", "Publication Writing", "Deep Expertise"],
                 "description": "Advance knowledge through academic and industrial research",
-                "salary_range": "₹4L – ₹20L+"
+                "salary_range": "₹4L – ₹20L+",
+                "linkedin_url": li_url("Research Scientist")
             }
         ]
 

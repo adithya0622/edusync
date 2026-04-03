@@ -171,6 +171,11 @@ export default function InsightsPage() {
                   <p className="ins-career-desc">{c.description}</p>
                   <div className="ins-career-salary">💰 {c.salary_range}</div>
                   <div className="ins-tags">{c.skills_needed?.map((s: string, j: number) => <span key={j} className="ins-tag ins-tag-blue">{s}</span>)}</div>
+                  {c.linkedin_url && (
+                    <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" className="ins-linkedin-btn">
+                      View Jobs on LinkedIn →
+                    </a>
+                  )}
                 </div>
               ))}
             </div>
