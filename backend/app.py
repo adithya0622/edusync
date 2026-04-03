@@ -58,8 +58,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS - locked to known origins
 ALLOWED_ORIGINS = [
-    "https://frontend-o9hhwox3l-adithya061222-7750s-projects.vercel.app",
+    "https://frontend-1jhn7wagh-adithya061222-7750s-projects.vercel.app",
     "https://frontend-tau-ten-9qnwt8gh6m.vercel.app",
+    "https://frontend-o9hhwox3l-adithya061222-7750s-projects.vercel.app",
     "http://localhost:5173",
     "http://localhost:3000",
 ]
