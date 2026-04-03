@@ -1,10 +1,28 @@
-.well-page { min-height: 100vh; background: linear-gradient(135deg, #0a1628, #1a2744, #0a1628); color: white; padding: 20px; }
+.well-page { 
+  min-height: 100vh; 
+  background: linear-gradient(135deg, #0a1628, #1a2744, #0a1628); 
+  color: white; 
+  padding: 20px; 
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 100vh;
+}
+
+html, body {
+  overflow-x: hidden;
+}
 .well-header { text-align: center; margin-bottom: 32px; }
 .well-header h1 { font-size: 1.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; color: #f9a8d4; }
 .well-header p { color: rgba(255,255,255,0.6); margin-top: 8px; }
 .well-back { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
 .well-back:hover { background: rgba(255,255,255,0.2); }
-.well-container { max-width: 600px; margin: 0 auto; }
+.well-container { 
+  max-width: 600px; 
+  margin: 0 auto; 
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  padding-bottom: 20px;
+}
 .well-form { background: rgba(255,255,255,0.07); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 20px; }
 .well-field { display: flex; flex-direction: column; gap: 6px; }
 .well-field label { font-size: 0.95rem; color: rgba(255,255,255,0.8); }

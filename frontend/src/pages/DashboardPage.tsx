@@ -257,17 +257,19 @@ export default function DashboardPage() {
             <button onClick={() => setDarkMode(d => !d)} className="btn-secondary" title="Toggle dark mode" style={{minWidth:'unset',padding:'0.4rem 0.6rem'}}>
               {darkMode ? <Sun size={17}/> : <Moon size={17}/>}
             </button>
+            <button onClick={() => navigate('/recommendations')} className="btn-recommendations hide-on-mobile">
+              <TrendingUp size={18} />
+              <span>Recommendations</span>
+            </button>
+            <button onClick={() => navigate('/report')} className="btn-report hide-on-mobile">
+              <BarChart3 size={18} />
+              <span>Report</span>
+            </button>
+          </div>
+          <div className="header-feature-buttons hide-on-mobile">
             <button onClick={handleDownloadStudyPlan} className="btn-report" title="Download personalised study plan">
               <Download size={18} />
               <span>Study Plan</span>
-            </button>
-            <button onClick={() => navigate('/recommendations')} className="btn-recommendations">
-              <TrendingUp size={18} />
-              <span>AI Recommendations</span>
-            </button>
-            <button onClick={() => navigate('/report')} className="btn-report">
-              <BarChart3 size={18} />
-              <span>Report</span>
             </button>
             <button onClick={() => navigate('/counselor')} className="btn-counselor">
               <MessageCircle size={18} />
@@ -285,6 +287,8 @@ export default function DashboardPage() {
               <Sparkles size={18} />
               <span>Insights</span>
             </button>
+          </div>
+          <div className="header-actions">
             <button onClick={handleLogout} className="btn-logout">
               <LogOut size={18} />
               <span>Logout</span>
