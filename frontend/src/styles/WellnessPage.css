@@ -45,3 +45,4 @@ html, body {
 .well-alert { background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(239,68,68,0.05)); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
 .well-counselor-btn { background: #ef4444; border: none; color: white; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
 .well-counselor-btn:hover { background: #dc2626; }
+.well-error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); border-radius: 10px; padding: 12px 16px; font-size: 0.9rem; color: #fca5a5; text-align: center; }

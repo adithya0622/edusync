@@ -225,6 +225,17 @@ export default function DashboardPage() {
 
   const currentResult = selectedCourse && results ? results[selectedCourse] : null
 
+  // Compute average % across visible assessments for the current course
+  const currentAssessments = currentResult
+    ? Object.entries(currentResult.marks).filter(([a]) => !a.includes('Converted'))
+    : []
+  const avgPct = currentAssessments.length > 0
+    ? Math.round(currentAssessments.reduce((acc, [a, m]) => {
+        const max = currentResult?.max_marks_map?.[a]
+        return acc + (max && max > 0 ? m / max : 0)
+      }, 0) / currentAssessments.length * 100)
+    : null
+
   return (
     <div className="dashboard-container">
       {/* Header */}
@@ -238,88 +249,80 @@ export default function DashboardPage() {
             <p>Student Learning Recommendations</p>
           </div>
         </div>
-        <div className="header-right">
+        <div className="header-center">
           {streak > 0 && (
-            <div title={`${streak}-day login streak!`} style={{display:'flex',alignItems:'center',gap:'0.3rem',background:'linear-gradient(135deg,#f59e0b,#ef4444)',color:'white',borderRadius:'20px',padding:'0.3rem 0.7rem',fontSize:'0.82rem',fontWeight:700,cursor:'default'}}>
-              <Flame size={15}/> {streak}d streak
+            <div className="badge-streak" title={`${streak}-day login streak!`}>
+              <Flame size={14}/> {streak}d streak
             </div>
           )}
           {peerRank && (
-            <div title={`Rank ${peerRank.rank} of ${peerRank.total_students}`} style={{display:'flex',alignItems:'center',gap:'0.3rem',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',color:'white',borderRadius:'20px',padding:'0.3rem 0.7rem',fontSize:'0.82rem',fontWeight:700,cursor:'default'}}>
-              <Users size={15}/> Top {100 - peerRank.percentile}%
+            <div className="badge-rank" title={`Rank ${peerRank.rank} of ${peerRank.total_students}`}>
+              <Users size={14}/> Top {100 - peerRank.percentile}%
             </div>
           )}
           <div className="user-info">
             <span className="user-name">{studentName}</span>
             <span className="user-id">Roll No: {studentId}</span>
           </div>
-          <div className="header-actions">
-            <button onClick={() => setDarkMode(d => !d)} className="btn-secondary" title="Toggle dark mode" style={{minWidth:'unset',padding:'0.4rem 0.6rem'}}>
-              {darkMode ? <Sun size={17}/> : <Moon size={17}/>}
-            </button>
-            <button onClick={() => navigate('/recommendations')} className="btn-recommendations hide-on-mobile">
-              <TrendingUp size={18} />
-              <span>Recommendations</span>
-            </button>
-            <button onClick={() => navigate('/report')} className="btn-report hide-on-mobile">
-              <BarChart3 size={18} />
-              <span>Report</span>
-            </button>
-          </div>
-          <div className="header-feature-buttons hide-on-mobile">
-            <button onClick={handleDownloadStudyPlan} className="btn-report" title="Download personalised study plan">
-              <Download size={18} />
-              <span>Study Plan</span>
-            </button>
-            <button onClick={() => navigate('/counselor')} className="btn-counselor">
-              <MessageCircle size={18} />
-              <span>AI Counselor</span>
-            </button>
-            <button onClick={() => navigate('/achievements')} className="btn-achievements" style={{background:'linear-gradient(135deg,#7c3aed,#a78bfa)',border:'none',color:'white',padding:'8px 14px',borderRadius:'10px',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px',fontSize:'0.85rem',fontWeight:600}}>
-              <Trophy size={18} />
-              <span>Achievements</span>
-            </button>
-            <button onClick={() => navigate('/wellness')} className="btn-wellness" style={{background:'linear-gradient(135deg,#ec4899,#f43f5e)',border:'none',color:'white',padding:'8px 14px',borderRadius:'10px',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px',fontSize:'0.85rem',fontWeight:600}}>
-              <Heart size={18} />
-              <span>Wellness</span>
-            </button>
-            <button onClick={() => navigate('/insights')} className="btn-insights" style={{background:'linear-gradient(135deg,#0891b2,#06b6d4)',border:'none',color:'white',padding:'8px 14px',borderRadius:'10px',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px',fontSize:'0.85rem',fontWeight:600}}>
-              <Sparkles size={18} />
-              <span>Insights</span>
-            </button>
-          </div>
-          <div className="header-actions">
-            <button onClick={handleLogout} className="btn-logout">
-              <LogOut size={18} />
-              <span>Logout</span>
-            </button>
-          </div>
+        </div>
+        <div className="header-right">
+          <button onClick={() => setDarkMode(d => !d)} className="btn-icon" title="Toggle dark mode">
+            {darkMode ? <Sun size={17}/> : <Moon size={17}/>}
+          </button>
+          <button onClick={handleLogout} className="btn-logout">
+            <LogOut size={18} />
+            <span>Logout</span>
+          </button>
         </div>
       </header>
 
+      {/* Secondary Navigation Strip */}
+      <nav className="dashboard-nav-strip">
+        <button onClick={() => navigate('/recommendations')} className="nav-strip-btn">
+          <TrendingUp size={14}/> Recommendations
+        </button>
+        <button onClick={() => navigate('/report')} className="nav-strip-btn">
+          <BarChart3 size={14}/> Report
+        </button>
+        <button onClick={handleDownloadStudyPlan} className="nav-strip-btn">
+          <Download size={14}/> Study Plan
+        </button>
+        <button onClick={() => navigate('/counselor')} className="nav-strip-btn nav-strip-purple">
+          <MessageCircle size={14}/> AI Counselor
+        </button>
+        <button onClick={() => navigate('/achievements')} className="nav-strip-btn nav-strip-violet">
+          <Trophy size={14}/> Achievements
+        </button>
+        <button onClick={() => navigate('/wellness')} className="nav-strip-btn nav-strip-pink">
+          <Heart size={14}/> Wellness
+        </button>
+        <button onClick={() => navigate('/insights')} className="nav-strip-btn nav-strip-cyan">
+          <Sparkles size={14}/> Insights
+        </button>
+      </nav>
+
+      {/* Low-score alert banner */}
+      {!alertDismissed && lowScoreAlerts.length > 0 && (
+        <div className="alert-banner">
+          <span>⚠️ <strong>{lowScoreAlerts.length}</strong> assessment{lowScoreAlerts.length > 1 ? 's' : ''} below 50%: {lowScoreAlerts.slice(0, 3).join(', ')}{lowScoreAlerts.length > 3 ? ` +${lowScoreAlerts.length - 3} more` : ''} — check your study plan!</span>
+          <button onClick={() => setAlertDismissed(true)} className="alert-close"><X size={14}/></button>
+        </div>
+      )}
+
       <main className="dashboard-content">
-        {/* Low-score alert banner */}
-        {!alertDismissed && lowScoreAlerts.length > 0 && (
-          <div style={{gridColumn:'1/-1',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',background:'#fef2f2',border:'1px solid #fecaca',borderRadius:'10px',padding:'0.75rem 1.25rem',margin:'0 0 0.5rem',color:'#991b1b',fontSize:'0.88rem',fontWeight:500}}>
-            <span>⚠️ <strong>{lowScoreAlerts.length}</strong> assessment{lowScoreAlerts.length > 1 ? 's' : ''} below 50%: {lowScoreAlerts.slice(0,3).join(', ')}{lowScoreAlerts.length > 3 ? ` +${lowScoreAlerts.length-3} more` : ''} — check your study plan!</span>
-            <button onClick={() => setAlertDismissed(true)} style={{background:'none',border:'none',cursor:'pointer',color:'#991b1b',padding:0,flexShrink:0}}><X size={16}/></button>
-          </div>
-        )}
         {/* Sidebar - Course Selection */}
         <aside className="courses-sidebar">
           <h2 className="sidebar-title">Courses</h2>
           <div className="courses-list">
             {results &&
-              Object.entries(results).map(([courseId]) => (
+              Object.entries(results).map(([courseId, courseData]) => (
                 <button
                   key={courseId}
                   onClick={() => setSelectedCourse(courseId)}
-                  className={`course-item ${
-                    selectedCourse === courseId ? 'active' : ''
-                  }`}
+                  className={`course-item ${selectedCourse === courseId ? 'active' : ''}`}
                 >
-                  <BookOpen size={18} />
-                  <span>Marks</span>
+                  <BookOpen size={16} />
+                  <span>{(courseData as CourseResult).course || courseId}</span>
                 </button>
               ))}
           </div>
@@ -329,40 +332,40 @@ export default function DashboardPage() {
         <section className="dashboard-main">
           {currentResult && (
             <>
-              {/* Performance Card */}
-              <div className="performance-card">
-                <div className="performance-header">
-                  <h2>Marks</h2>
-                  <span
-                    className={`performance-badge ${currentResult.performance_level
-                      .toLowerCase()
-                      .replace(' ', '-')}`}
-                  >
-                    {currentResult.performance_level}
-                  </span>
-                </div>
-
-                <div className="performance-stats">
-                  <div className="stat-item">
-                    <Award className="stat-icon" />
-                    <div className="stat-content">
-                      <span className="stat-label">Total Marks</span>
-                      <span className="stat-value">
-                        {currentResult.total_marks}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="stat-item">
-                    <TrendingUp className="stat-icon" />
-                    <div className="stat-content">
-                      <span className="stat-label">Performance</span>
-                      <span className="stat-value">
-                        {currentResult.performance_level}
-                      </span>
-                    </div>
+              {/* Stats Grid */}
+              <div className="stats-grid">
+                <div className="stats-card stats-blue">
+                  <Award size={22} className="stats-icon" />
+                  <div className="stats-body">
+                    <span className="stats-val">{currentResult.total_marks}</span>
+                    <span className="stats-lbl">Total Marks</span>
                   </div>
                 </div>
+                <div className="stats-card stats-purple">
+                  <TrendingUp size={22} className="stats-icon" />
+                  <div className="stats-body">
+                    <span className="stats-val">{currentResult.performance_level}</span>
+                    <span className="stats-lbl">Performance</span>
+                  </div>
+                </div>
+                {peerRank && (
+                  <div className="stats-card stats-indigo">
+                    <Users size={22} className="stats-icon" />
+                    <div className="stats-body">
+                      <span className="stats-val">#{peerRank.rank}</span>
+                      <span className="stats-lbl">Class Rank</span>
+                    </div>
+                  </div>
+                )}
+                {avgPct !== null && (
+                  <div className={`stats-card ${avgPct >= 60 ? 'stats-green' : avgPct >= 40 ? 'stats-amber' : 'stats-red'}`}>
+                    <BarChart3 size={22} className="stats-icon" />
+                    <div className="stats-body">
+                      <span className="stats-val">{avgPct}%</span>
+                      <span className="stats-lbl">Avg Score</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Marks Breakdown */}

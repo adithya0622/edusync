@@ -21,16 +21,19 @@ export default function WellnessPage() {
   const [form, setForm] = useState({ study_hours_per_day: 6, sleep_hours_per_day: 7, stress_level: 5, missed_classes_this_week: 0, energy_level: 6 })
   const [result, setResult] = useState<WellnessResult | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!studentId) return
     setLoading(true)
+    setError(null)
     try {
       const res = await wellnessAPI.check({ roll_no: studentId, ...form })
       setResult(res.data)
-    } catch (err) { console.error(err) }
-    finally { setLoading(false) }
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Unable to reach the server. Please check your connection and try again.')
+    } finally { setLoading(false) }
   }
 
   const slider = (label: string, key: keyof typeof form, min: number, max: number, unit: string) => (
@@ -61,6 +64,11 @@ export default function WellnessPage() {
             <button type="submit" className="well-btn" disabled={loading}>
               {loading ? 'Analysing...' : '🔍 Check My Wellness'}
             </button>
+            {error && (
+              <div className="well-error">
+                ⚠️ {error}
+              </div>
+            )}
           </form>
         ) : (
           <div className="well-result">

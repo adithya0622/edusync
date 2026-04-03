@@ -2117,7 +2117,7 @@ class WellnessInput(BaseModel):
     energy_level: int = Field(..., ge=1, le=10)    # 1 = exhausted, 10 = full energy
 
 @app.post("/api/student/wellness-check")
-def wellness_check(data: WellnessInput, api_key: str = Depends(verify_api_key)):
+def wellness_check(data: WellnessInput):
     score = 0
     risks = []
     tips = []
@@ -2207,7 +2207,7 @@ def wellness_check(data: WellnessInput, api_key: str = Depends(verify_api_key)):
 # ============================================================
 
 @app.get("/api/student/{roll_no}/study-buddies")
-def find_study_buddies(roll_no: str, api_key: str = Depends(verify_api_key)):
+def find_study_buddies(roll_no: str):
     try:
         df = pd.read_excel(STUDENTS_FILE)
         df.columns = [c.strip() for c in df.columns]
@@ -2280,7 +2280,7 @@ def find_study_buddies(roll_no: str, api_key: str = Depends(verify_api_key)):
 # ============================================================
 
 @app.get("/api/student/{roll_no}/forecast")
-def forecast_performance(roll_no: str, api_key: str = Depends(verify_api_key)):
+def forecast_performance(roll_no: str):
     try:
         df = pd.read_excel(STUDENTS_FILE)
         df.columns = [c.strip() for c in df.columns]
@@ -2347,7 +2347,7 @@ def forecast_performance(roll_no: str, api_key: str = Depends(verify_api_key)):
 # ============================================================
 
 @app.get("/api/student/{roll_no}/career-insights")
-def career_insights(roll_no: str, api_key: str = Depends(verify_api_key)):
+def career_insights(roll_no: str):
     try:
         df = pd.read_excel(STUDENTS_FILE)
         df.columns = [c.strip() for c in df.columns]
@@ -2425,7 +2425,7 @@ def career_insights(roll_no: str, api_key: str = Depends(verify_api_key)):
 # ============================================================
 
 @app.get("/api/student/{roll_no}/resources")
-def get_resources(roll_no: str, api_key: str = Depends(verify_api_key)):
+def get_resources(roll_no: str):
     try:
         df = pd.read_excel(STUDENTS_FILE)
         df.columns = [c.strip() for c in df.columns]
@@ -2445,21 +2445,18 @@ def get_resources(roll_no: str, api_key: str = Depends(verify_api_key)):
                     except Exception:
                         pass
 
-        resource_map = {
-            "default": [
-                {"type": "📹 Video", "title": "CS Fundamentals – MIT OpenCourseWare", "url": "https://ocw.mit.edu", "difficulty": "Intermediate"},
-                {"type": "📚 Course", "title": "NPTEL Free Engineering Courses", "url": "https://nptel.ac.in", "difficulty": "All levels"},
-                {"type": "💻 Practice", "title": "LeetCode – Coding Practice", "url": "https://leetcode.com", "difficulty": "Beginner–Advanced"},
-                {"type": "📖 Book", "title": "GeeksForGeeks Articles", "url": "https://www.geeksforgeeks.org", "difficulty": "All levels"},
-                {"type": "🎓 Certificate", "title": "Coursera – Free Audit Options", "url": "https://www.coursera.org", "difficulty": "All levels"},
-                {"type": "🔬 Research", "title": "Google Scholar", "url": "https://scholar.google.com", "difficulty": "Advanced"}
-            ]
-        }
+        # Generate personalised resources based on actual weak subjects
+        topic = weak_subjects[0] if weak_subjects else "Computer Science Fundamentals"
+        raw_resources = get_online_resources(topic)
+        resources = [
+            {"type": r["platform"], "title": r["title"], "url": r["url"], "difficulty": "Personalised" if weak_subjects else "All Levels"}
+            for r in raw_resources
+        ]
 
         return {
             "weak_subjects": weak_subjects,
-            "resources": resource_map["default"],
-            "personalised_tip": f"Focus on: {', '.join(weak_subjects[:2])}" if weak_subjects else "You're performing well! Explore advanced topics to stay ahead.",
+            "resources": resources,
+            "personalised_tip": f"Focusing on your weak area: {', '.join(weak_subjects[:2])}" if weak_subjects else "You're performing well! Explore advanced topics to stay ahead.",
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
