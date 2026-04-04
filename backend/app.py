@@ -73,14 +73,19 @@ async def global_exception_handler(request: Request, exc: Exception):
     print(f"Unhandled exception: {traceback.format_exc()}")
     return JSONResponse(status_code=500, content={"error": str(exc), "type": type(exc).__name__})
 
-# CORS - locked to known origins
-ALLOWED_ORIGINS = [
-    "https://frontend-1jhn7wagh-adithya061222-7750s-projects.vercel.app",
-    "https://frontend-tau-ten-9qnwt8gh6m.vercel.app",
-    "https://frontend-o9hhwox3l-adithya061222-7750s-projects.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000",
-]
+# CORS - allowed origins loaded from env var ALLOWED_ORIGINS (comma-separated) or fallback defaults
+_env_origins = os.getenv("ALLOWED_ORIGINS", "")
+ALLOWED_ORIGINS = (
+    [o.strip() for o in _env_origins.split(",") if o.strip()]
+    if _env_origins
+    else [
+        "https://frontend-1jhn7wagh-adithya061222-7750s-projects.vercel.app",
+        "https://frontend-tau-ten-9qnwt8gh6m.vercel.app",
+        "https://frontend-o9hhwox3l-adithya061222-7750s-projects.vercel.app",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -323,18 +328,9 @@ def get_student_results(roll_no: str, class_name: str = None) -> dict:
                         except (ValueError, TypeError):
                             pass
                 
-                # Determine performance level
-                if total_marks >= 200:
-                    performance_level = "Excellent"
-                elif total_marks >= 150:
-                    performance_level = "Very Good"
-                elif total_marks >= 100:
-                    performance_level = "Good"
-                elif total_marks >= 50:
-                    performance_level = "Satisfactory"
-                else:
-                    performance_level = "Needs Improvement"
-                
+                # Determine performance level dynamically from Courses.xlsx max marks
+                performance_level = get_performance_level(total_marks, sheet_name)
+
                 # Generate recommendations with course_id and full student data (including converted marks)
                 recommendations = generate_recommendations(student_data, total_marks, performance_level, sheet_name)
 
@@ -500,6 +496,47 @@ def get_max_marks_map(course_id: str) -> Dict[str, float]:
     except Exception as e:
         print(f"Error reading max marks map for {course_id}: {e}")
         return {}
+
+
+def get_performance_level(total_marks: float, course_id: str = None) -> str:
+    """
+    Determine performance level based on marks.
+    When course_id is supplied the thresholds are computed dynamically as
+    percentages of the course's max possible marks from Courses.xlsx.
+    Falls back to fixed numeric thresholds if course data is unavailable.
+    """
+    max_possible = 0.0
+    if course_id:
+        try:
+            max_marks_map = get_max_marks_map(course_id)
+            max_possible = sum(max_marks_map.values())
+        except Exception:
+            pass
+
+    if max_possible > 0:
+        pct = total_marks / max_possible
+        if pct >= 0.80:
+            return "Excellent"
+        elif pct >= 0.60:
+            return "Very Good"
+        elif pct >= 0.40:
+            return "Good"
+        elif pct >= 0.20:
+            return "Satisfactory"
+        else:
+            return "Needs Improvement"
+    else:
+        # Fallback when Courses.xlsx is not available
+        if total_marks >= 200:
+            return "Excellent"
+        elif total_marks >= 150:
+            return "Very Good"
+        elif total_marks >= 100:
+            return "Good"
+        elif total_marks >= 50:
+            return "Satisfactory"
+        else:
+            return "Needs Improvement"
 
 
 def get_online_resources(topic: str) -> List[Dict]:
@@ -1067,7 +1104,7 @@ async def health_check(request: Request):
 
 # ==================== Teacher Endpoints ====================
 
-TEACHER_EMAIL = "teacher123@gmail.com"
+TEACHER_EMAIL = os.getenv("TEACHER_EMAIL", "teacher123@gmail.com")
 
 class TeacherLoginRequest(BaseModel):
     email: str = Field(..., max_length=254)
@@ -1163,8 +1200,15 @@ async def get_class_students(request: Request, class_name: str, _: str = Depends
 
                 marks: Dict[str, float] = {}
                 total_marks = 0.0
+                assessments_completed_val = 0
                 for col in df.columns:
                     col_lower = col.lower()
+                    if col_lower == 'assessments completed':
+                        try:
+                            assessments_completed_val = int(float(row.get(col, 0) or 0))
+                        except (ValueError, TypeError):
+                            pass
+                        continue
                     if any(t in col_lower for t in ['assignment', 'quiz', 'exam', 'lab', 'mark', 'score', 'test']):
                         try:
                             val = float(row.get(col, 0) or 0)
@@ -1173,16 +1217,7 @@ async def get_class_students(request: Request, class_name: str, _: str = Depends
                         except (ValueError, TypeError):
                             pass
 
-                if total_marks >= 200:
-                    perf = "Excellent"
-                elif total_marks >= 150:
-                    perf = "Very Good"
-                elif total_marks >= 100:
-                    perf = "Good"
-                elif total_marks >= 50:
-                    perf = "Satisfactory"
-                else:
-                    perf = "Needs Improvement"
+                perf = get_performance_level(total_marks, sheet_name)
 
                 if roll_no not in students_map:
                     students_map[roll_no] = {
@@ -1194,7 +1229,8 @@ async def get_class_students(request: Request, class_name: str, _: str = Depends
                 students_map[roll_no]["courses"][sheet_name] = {
                     "marks": marks,
                     "total_marks": round(total_marks, 2),
-                    "performance_level": perf
+                    "performance_level": perf,
+                    "assessments_completed": assessments_completed_val,
                 }
 
         students_list = sorted(students_map.values(), key=lambda x: x["roll_no"])
@@ -1404,6 +1440,70 @@ async def update_curriculum(req: Request, sheet_id: str, request: UpdateCurricul
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class UpdateAssessmentsRequest(BaseModel):
+    sheet_name: str = Field(..., max_length=50)        # e.g. "19CSE302"
+    assessments_completed: int = Field(..., ge=0, le=50)
+
+
+@app.put("/api/teacher/student/{roll_no}/assessments")
+@limiter.limit("15/minute")
+async def update_assessments_completed(
+    req: Request,
+    roll_no: str,
+    request: UpdateAssessmentsRequest,
+    _: str = Depends(verify_teacher_token),
+):
+    """Update the Assessments Completed count for a student in a specific sheet."""
+    try:
+        if not os.path.exists(STUDENTS_FILE):
+            raise HTTPException(status_code=404, detail="Students file not found")
+
+        xl = pd.ExcelFile(STUDENTS_FILE, engine='openpyxl')
+        sheets_data: Dict[str, pd.DataFrame] = {}
+        for sheet in xl.sheet_names:
+            sheets_data[sheet] = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+
+        if request.sheet_name not in sheets_data:
+            raise HTTPException(status_code=404, detail=f"Sheet {request.sheet_name} not found")
+
+        df = sheets_data[request.sheet_name]
+        df.columns = [c.strip() for c in df.columns]
+
+        # Find roll number column
+        roll_col = next(
+            (c for c in df.columns if any(t in c.lower() for t in ['roll no', 'roll_no', 'rollno', 'student id'])),
+            None,
+        )
+        if not roll_col:
+            raise HTTPException(status_code=400, detail="Roll number column not found in sheet")
+
+        norm_roll = str(roll_no).strip().upper()
+        mask = df[roll_col].astype(str).str.strip().str.upper().str.replace(r'\.0$', '', regex=True) == norm_roll
+        if not mask.any():
+            raise HTTPException(status_code=404, detail=f"Student {roll_no} not found in {request.sheet_name}")
+
+        # Ensure column exists
+        if 'Assessments Completed' not in df.columns:
+            df['Assessments Completed'] = 0
+
+        df.loc[mask, 'Assessments Completed'] = request.assessments_completed
+        sheets_data[request.sheet_name] = df
+
+        with pd.ExcelWriter(STUDENTS_FILE, engine='openpyxl') as writer:
+            for sheet, data in sheets_data.items():
+                data.to_excel(writer, sheet_name=sheet, index=False)
+
+        return {
+            "success": True,
+            "message": f"Assessments Completed updated to {request.assessments_completed} for {roll_no} in {request.sheet_name}",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== Peer Rank / Analytics Endpoints ====================
 
 @app.get("/api/student/{roll_no}/rank")
@@ -1497,15 +1597,11 @@ async def get_class_analytics(request: Request, class_name: str, _: str = Depend
                     "count": int(vals.count()),
                 }
 
-            # Performance distribution
+            # Performance distribution — thresholds derived from Courses.xlsx via get_performance_level
             totals = df[assess_cols].apply(pd.to_numeric, errors='coerce').fillna(0).sum(axis=1)
             dist = {"Excellent": 0, "Very Good": 0, "Good": 0, "Satisfactory": 0, "Needs Improvement": 0}
             for t in totals:
-                if t >= 200: dist["Excellent"] += 1
-                elif t >= 150: dist["Very Good"] += 1
-                elif t >= 100: dist["Good"] += 1
-                elif t >= 50: dist["Satisfactory"] += 1
-                else: dist["Needs Improvement"] += 1
+                dist[get_performance_level(float(t), sheet)] += 1
 
             course_analytics[sheet] = {
                 "assessment_stats": assess_stats,
@@ -1687,18 +1783,9 @@ async def get_student_recommendation(
                     seen.add(r)
             recommendations_str = "\n".join(unique_recommendations)
         else:
-            # Determine performance level to provide personalized default suggestions
-            if total_converted >= 200:
-                performance_level = "Excellent"
-            elif total_converted >= 150:
-                performance_level = "Very Good"
-            elif total_converted >= 100:
-                performance_level = "Good"
-            elif total_converted >= 50:
-                performance_level = "Satisfactory"
-            else:
-                performance_level = "Needs Improvement"
-            
+            # Determine performance level dynamically from Courses.xlsx max marks
+            performance_level = get_performance_level(total_converted, request.course_id)
+
             # Get personalized default suggestions
             default_recommendations = get_default_recommendations(performance_level)
             recommendations_str = "\n".join([f"{i+1}. {rec}" for i, rec in enumerate(default_recommendations)])
@@ -2067,6 +2154,28 @@ def _get_courses_max_marks() -> Dict[str, Dict[str, float]]:
 # Cache courses max marks at import time (static data, no need to re-read per call)
 _COURSES_MAX_MARKS: Dict[str, Dict[str, float]] = {}
 
+def _compute_total_tests() -> int:
+    """Read the maximum number of assessment rows across all Courses.xlsx sheets."""
+    try:
+        if not os.path.exists(COURSES_FILE):
+            return 8
+        xl = pd.ExcelFile(COURSES_FILE, engine='openpyxl')
+        max_count = 0
+        for sheet in xl.sheet_names:
+            try:
+                df = pd.read_excel(COURSES_FILE, sheet_name=sheet, engine='openpyxl')
+                if 'Assessments' in df.columns:
+                    count = int(df['Assessments'].dropna().shape[0])
+                    max_count = max(max_count, count)
+            except Exception:
+                continue
+        return max_count if max_count > 0 else 8
+    except Exception:
+        return 8
+
+# Total Tests per course — derived dynamically from Courses.xlsx assessment count
+TOTAL_TESTS: int = _compute_total_tests()
+
 def compute_achievements(roll_no: str) -> dict:
     """
     Compute rich tiered achievements, XP and level for a student.
@@ -2077,6 +2186,7 @@ def compute_achievements(roll_no: str) -> dict:
 
     # ── Per-assessment stats gathered across ALL sheets ─────────────────────
     total_assessments   = 0
+    attempted_names: set = set()  # unique assessment column names with non-zero score
     perfect_scores      = 0   # 100 %
     above_90            = 0   # ≥ 90 %
     above_75            = 0   # ≥ 75 %
@@ -2127,6 +2237,10 @@ def compute_achievements(roll_no: str) -> dict:
                         total_assessments += 1
                         sheet_scores.append(pct)
 
+                        # Track unique attempted assessment names (non-zero)
+                        if val > 0:
+                            attempted_names.add(col.strip())
+
                         if pct >= 1.0:
                             perfect_scores += 1
                             xp += 60
@@ -2147,13 +2261,16 @@ def compute_achievements(roll_no: str) -> dict:
 
                 if sheet_scores:
                     avg = sum(sheet_scores) / len(sheet_scores)
-                    short = sheet.replace('19CSE', 'CSE ').replace('19IT', 'IT ').replace('19AIML', 'AIML ').strip()
+                    short = sheet.replace('19CSE', 'CSE ').replace('19IT', 'IT ').replace('19AIML', 'AIML ').replace('19ADS', 'ADS ').strip()
                     subject_avgs[short] = avg
                     subject_counts[short] = len(sheet_scores)
             except Exception:
                 continue
     except Exception:
         pass
+
+    # assessments_done = unique test types attempted (non-zero), capped at TOTAL_TESTS
+    assessments_done = min(len(attempted_names), TOTAL_TESTS)
 
     # ── Master badge catalog ─────────────────────────────────────────────────
     # Each entry: id, emoji, name, tier(bronze/silver/gold/platinum), category,
@@ -2177,13 +2294,20 @@ def compute_achievements(roll_no: str) -> dict:
 
     badge("first_assess", "📝", "Assessed",        "starter", "First Steps",
           "Completed your first assessment",
-          total_assessments >= 1, min(100, total_assessments * 100), 15,
+          assessments_done >= 1, min(100, assessments_done * 100), 15,
           "Complete at least 1 assessment")
 
     badge("five_assess",  "📋", "Active Learner",  "bronze",  "First Steps",
           "Completed 5 assessments",
-          total_assessments >= 5, min(100, total_assessments / 5 * 100), 25,
-          f"{total_assessments}/5 assessments done")
+          assessments_done >= 5, min(100, assessments_done / 5 * 100), 25,
+          f"{assessments_done}/5 assessments done")
+
+    # Total tests = TOTAL_TESTS (8) per course, constant across all students
+    badge("all_tests",    "🎖️", "Full Sprint",      "gold",   "First Steps",
+          f"Attempt all {TOTAL_TESTS} test types",
+          assessments_done >= TOTAL_TESTS,
+          min(100, assessments_done / TOTAL_TESTS * 100), 55,
+          f"{assessments_done}/{TOTAL_TESTS} test types attempted")
 
     # ── Category: Performance ──────────────────────────────────────────────
     badge("score_50",     "✅", "Getting There",   "bronze",  "Performance",
@@ -2294,6 +2418,8 @@ def compute_achievements(roll_no: str) -> dict:
         "total_count": len(all_badges),
         "stats": {
             "total_assessments": total_assessments,
+            "assessments_done": assessments_done,
+            "total_tests": TOTAL_TESTS,
             "perfect_scores": perfect_scores,
             "above_90_pct": above_90,
             "above_75_pct": above_75,
