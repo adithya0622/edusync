@@ -2034,6 +2034,39 @@ async def chat(req: Request, request: ChatRequest):
 # ==================== GAMIFICATION ==========================
 # ============================================================
 
+def _get_courses_max_marks() -> Dict[str, Dict[str, float]]:
+    """Return {sheet_name: {assessment_name: max_marks}} from Courses.xlsx."""
+    result: Dict[str, Dict[str, float]] = {}
+    try:
+        if not os.path.exists(COURSES_FILE):
+            return result
+        xl = pd.ExcelFile(COURSES_FILE, engine='openpyxl')
+        for sheet in xl.sheet_names:
+            try:
+                df = pd.read_excel(COURSES_FILE, sheet_name=sheet, engine='openpyxl')
+                if 'Assessments' not in df.columns:
+                    continue
+                # Prefer 'Total Marks' column
+                marks_col = next((c for c in df.columns if 'total' in c.lower() and 'mark' in c.lower()), None)
+                if not marks_col:
+                    continue
+                sheet_map: Dict[str, float] = {}
+                for _, row in df.iterrows():
+                    if pd.notna(row['Assessments']) and pd.notna(row.get(marks_col)):
+                        try:
+                            sheet_map[str(row['Assessments']).strip()] = float(row[marks_col])
+                        except (ValueError, TypeError):
+                            pass
+                result[sheet] = sheet_map
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return result
+
+# Cache courses max marks at import time (static data, no need to re-read per call)
+_COURSES_MAX_MARKS: Dict[str, Dict[str, float]] = {}
+
 def compute_achievements(roll_no: str) -> dict:
     """
     Compute rich tiered achievements, XP and level for a student.
@@ -2058,6 +2091,9 @@ def compute_achievements(roll_no: str) -> dict:
         if norm_roll.endswith('.0'):
             norm_roll = norm_roll[:-2]
 
+        # Load Courses max marks once for all sheets
+        courses_max = _get_courses_max_marks()
+
         for sheet in excel_file.sheet_names:
             try:
                 df = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
@@ -2076,12 +2112,16 @@ def compute_achievements(roll_no: str) -> dict:
                 row = match.iloc[0]
                 mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment', 'midterm', 'internal', 'marks', 'test', 'exam', 'quiz', 'lab', 'project'])]
 
+                # Sheet max-marks map from Courses.xlsx (preferred) or class column max (fallback)
+                sheet_course_max = courses_max.get(sheet, {})
+
                 sheet_scores = []
                 for col in mark_cols:
                     try:
                         val = float(row[col])
-                        max_val = df[col].max()
-                        if max_val <= 0:
+                        # Use Courses.xlsx Total Marks if available, else fall back to class column max
+                        max_val = sheet_course_max.get(col) or df[col].max()
+                        if not max_val or max_val <= 0:
                             continue
                         pct = val / max_val
                         total_assessments += 1

@@ -1,5 +1,5 @@
 /* ── Base ───────────────────────────────────────────────────────────── */
-.gam-page { min-height: 100vh; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: white; padding: 20px; }
+.gam-page { height: 100vh; overflow-y: auto; overflow-x: hidden; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: white; padding: 20px; }
 .gam-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
 .gam-header h1 { font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
 .gam-back { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s; }
