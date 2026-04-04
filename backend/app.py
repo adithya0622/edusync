@@ -2264,13 +2264,13 @@ def compute_achievements(roll_no: str) -> dict:
 
 
 @app.get("/api/student/{roll_no}/achievements")
-def get_achievements(roll_no: str, api_key: str = Depends(verify_api_key)):
+def get_achievements(roll_no: str, _: str = Depends(verify_any_token)):
     data = compute_achievements(roll_no)
     return {"roll_no": mask_roll_no(roll_no), **data}
 
 
 @app.get("/api/leaderboard")
-def get_leaderboard(class_name: Optional[str] = None, api_key: str = Depends(verify_api_key)):
+def get_leaderboard(class_name: Optional[str] = None, _: str = Depends(verify_any_token)):
     try:
         df = pd.read_excel(STUDENTS_FILE)
         df.columns = [c.strip() for c in df.columns]

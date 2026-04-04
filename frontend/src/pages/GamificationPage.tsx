@@ -70,6 +70,18 @@ export default function GamificationPage() {
     return catOk && stateOk
   })
 
+  // Level Up Plan calculations
+  const quickWins = achievements
+    .filter(a => !a.unlocked && a.progress > 0)
+    .sort((a, b) => b.progress - a.progress)
+    .slice(0, 4)
+  const potentialXP = quickWins.reduce((sum, a) => sum + a.xp_reward, 0)
+  const currentXP = data?.xp ?? 0
+  const newTotalXP = currentXP + potentialXP
+  const currentLevel = data?.level ?? 1
+  const newLevel = Math.max(1, Math.floor(newTotalXP / 50) + 1)
+  const levelsGained = newLevel - currentLevel
+
   return (
     <div className="gam-page">
       <div className="gam-header">
@@ -119,6 +131,51 @@ export default function GamificationPage() {
           <div className="gam-stat-label">Subjects Mastered</div>
         </div>
       </div>
+
+      {/* ── Level Up Plan ────────────────────────────────────────── */}
+      {data && (
+        <div className="gam-plan-card">
+          <div className="gam-plan-header">
+            <div className="gam-plan-title">
+              <Zap size={18} /> Your Level Up Plan
+            </div>
+            <div className="gam-plan-subtitle">
+              {data.next_level_xp > 0
+                ? `${data.next_level_xp} XP to reach Level ${currentLevel + 1}`
+                : `Max level reached!`}
+              {potentialXP > 0 && (
+                <span className="gam-plan-potential">
+                  {' '}· Complete these to gain <strong>+{potentialXP} XP</strong>
+                  {levelsGained > 0 && ` and jump ${levelsGained} level${levelsGained > 1 ? 's' : ''}!`}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="gam-plan-items">
+            {quickWins.length > 0 ? quickWins.map(a => (
+              <div key={a.id} className={`gam-plan-item tier-${a.tier}`}>
+                <div className="gam-plan-item-emoji">{a.emoji}</div>
+                <div className="gam-plan-item-body">
+                  <div className="gam-plan-item-name">{a.name}</div>
+                  <div className="gam-plan-item-hint">🎯 {a.hint || a.description}</div>
+                  <div className="gam-plan-item-bar-wrap">
+                    <div className="gam-plan-item-bar">
+                      <div className="gam-plan-item-fill" style={{ width: `${a.progress}%` }} />
+                    </div>
+                    <span className="gam-plan-item-pct">{a.progress}%</span>
+                  </div>
+                </div>
+                <div className="gam-plan-item-xp">+{a.xp_reward} XP</div>
+              </div>
+            )) : (
+              <div className="gam-plan-empty">
+                <span>📚</span>
+                <span>Complete more assessments to unlock quick wins!</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="gam-main-grid">
         {/* ── Achievements Panel ──────────────────────────────────── */}

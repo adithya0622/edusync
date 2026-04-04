@@ -84,3 +84,43 @@
 .gam-tips-list li { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 9px 12px; font-size: 0.82rem; }
 .gam-achievements-panel { min-width: 0; }
 
+/* ── Level Up Plan ─────────────────────────────────────────────────── */
+.gam-plan-card {
+  background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(59,130,246,0.08));
+  border: 1px solid rgba(139,92,246,0.3);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+.gam-plan-header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.gam-plan-title { display: flex; align-items: center; gap: 7px; font-size: 1.05rem; font-weight: 700; color: #c4b5fd; }
+.gam-plan-subtitle { font-size: 0.85rem; color: rgba(255,255,255,0.55); }
+.gam-plan-potential { color: rgba(255,255,255,0.75); }
+.gam-plan-potential strong { color: #86efac; }
+.gam-plan-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.gam-plan-item {
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-left: 3px solid rgba(139,92,246,0.5);
+  transition: background 0.2s, transform 0.15s;
+}
+.gam-plan-item:hover { background: rgba(255,255,255,0.09); transform: translateY(-2px); }
+.gam-plan-item.tier-gold { border-left-color: #fbbf24; }
+.gam-plan-item.tier-platinum { border-left-color: #a78bfa; }
+.gam-plan-item.tier-silver { border-left-color: #94a3b8; }
+.gam-plan-item.tier-bronze { border-left-color: #cd7f32; }
+.gam-plan-item-emoji { font-size: 1.6rem; flex-shrink: 0; line-height: 1; }
+.gam-plan-item-body { flex: 1; min-width: 0; }
+.gam-plan-item-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 3px; }
+.gam-plan-item-hint { font-size: 0.75rem; color: rgba(255,255,255,0.55); margin-bottom: 8px; line-height: 1.4; }
+.gam-plan-item-bar-wrap { display: flex; align-items: center; gap: 7px; }
+.gam-plan-item-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+.gam-plan-item-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 3px; transition: width 0.8s ease; }
+.gam-plan-item-pct { font-size: 0.7rem; color: rgba(255,255,255,0.45); width: 30px; text-align: right; flex-shrink: 0; }
+.gam-plan-item-xp { font-weight: 800; font-size: 0.82rem; color: #86efac; flex-shrink: 0; white-space: nowrap; margin-top: 2px; }
+.gam-plan-empty { grid-column: 1/-1; display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,0.4); font-size: 0.85rem; justify-content: center; padding: 20px; }
+
