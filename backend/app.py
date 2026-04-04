@@ -2403,15 +2403,20 @@ def find_study_buddies(roll_no: str):
             compat = min(100, len(can_help_me) * 35 + len(i_can_help) * 25 + 15)
 
             peer_achieve = compute_achievements(peer_roll)
-            peer_name = name_map.get(peer_roll, "Peer")
+            # Since Students.xlsx has no name column, use "Student ROLL" format
+            stored_name = name_map.get(peer_roll, "")
+            peer_display = stored_name if stored_name and stored_name != "Peer" else f"Student {mask_roll_no(peer_roll)}"
 
-            # Build readable "strong in" labels
-            strong_labels = [c.strip() for c in can_help_me[:3]]
-            mutual_labels = [c.strip() for c in i_can_help[:2]]
+            # Build readable course labels (strip leading "19" prefix for brevity)
+            def fmt_course(c):
+                return c.replace("19CSE", "CSE ").replace("19IT", "IT ").replace("19AIML", "AIML ").replace("19ADS", "ADS ").strip()
+
+            strong_labels = [fmt_course(c) for c in can_help_me[:3]]
+            mutual_labels = [fmt_course(c) for c in i_can_help[:2]]
 
             buddies.append({
                 "masked_roll": mask_roll_no(peer_roll),
-                "name": peer_name[:18] + "…" if len(peer_name) > 18 else peer_name,
+                "name": peer_display,
                 "strong_in": strong_labels,
                 "can_help_you_with": strong_labels,
                 "you_can_help_with": mutual_labels,
@@ -2422,7 +2427,11 @@ def find_study_buddies(roll_no: str):
 
         buddies = sorted(buddies, key=lambda x: int(x["compatibility"].replace("%", "")), reverse=True)[:6]
 
-        weak_labels = [c.strip() for c in my_weak[:4]]
+        def fmt_course(c):
+            return c.replace("19CSE", "CSE ").replace("19IT", "IT ").replace("19AIML", "AIML ").replace("19ADS", "ADS ").strip()
+
+        weak_labels = [fmt_course(c) for c in my_weak[:4]]
+        strong_labels_top = [fmt_course(c) for c in my_strong[:4]]
         msg = (
             f"Found {len(buddies)} compatible study {'buddy' if len(buddies)==1 else 'buddies'}! "
             "Students strong in your weak areas are listed below."
@@ -2433,7 +2442,7 @@ def find_study_buddies(roll_no: str):
         return {
             "buddies": buddies,
             "your_weak_subjects": weak_labels,
-            "your_strong_subjects": [c.strip() for c in my_strong[:4]],
+            "your_strong_subjects": strong_labels_top,
             "message": msg,
         }
 
