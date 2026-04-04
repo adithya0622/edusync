@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { studentAPI, curriculumAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { LogOut, BookOpen, BarChart3, MessageCircle, Pencil, Save, X, Moon, Sun, Flame, Download, Trophy, Heart, Sparkles, TrendingUp, FileText, AlertTriangle } from 'lucide-react'
+import { LogOut, BookOpen, BarChart3, MessageCircle, Pencil, Save, X, Moon, Sun, Flame, Download, Trophy, Heart, Sparkles, TrendingUp, FileText, AlertTriangle, Menu } from 'lucide-react'
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import html2pdf from 'html2pdf.js'
 import '../styles/DashboardPage.css'
@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const [curriculumDraft, setCurriculumDraft] = useState('')
   const [savingCurriculum, setSavingCurriculum] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [streak, setStreak] = useState(0)
   const [peerRank, setPeerRank] = useState<PeerRank | null>(null)
   const [lowScoreAlerts, setLowScoreAlerts] = useState<string[]>([])
@@ -185,8 +186,11 @@ export default function DashboardPage() {
   return (
     <div className={`db-root${darkMode ? ' db-dark' : ''}`}>
 
-      {/* â”€â”€ LEFT SIDEBAR â”€â”€ */}
-      <aside className="db-sidebar">
+      {/* Mobile overlay — closes drawer when tapped outside */}
+      {sidebarOpen && <div className="db-sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+
+      {/* LEFT SIDEBAR */}
+      <aside className={`db-sidebar${sidebarOpen ? ' db-sidebar-open' : ''}`}>
         <div className="db-sidebar-brand">
           <img src="/logo.png" alt="Drop In" className="db-sidebar-logo" />
           <div>
@@ -195,7 +199,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <nav className="db-nav">
+        <nav className="db-nav" onClick={() => setSidebarOpen(false)}>
           <button className="db-nav-item db-nav-active">
             <BarChart3 size={17} /><span>Dashboard</span>
           </button>
@@ -244,6 +248,9 @@ export default function DashboardPage() {
 
         {/* Topbar */}
         <header className="db-topbar">
+          <button className="db-hamburger" onClick={() => setSidebarOpen(o => !o)} aria-label="Toggle menu">
+            <Menu size={22} />
+          </button>
           <div className="db-topbar-right">
             <button className="db-icon-btn" onClick={() => setDarkMode(d => !d)} title="Toggle theme">
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
