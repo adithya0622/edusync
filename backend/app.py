@@ -51,8 +51,19 @@ except ImportError:
 
 app = FastAPI(title="Drop In - Student Learning Recommendation System")
 
-# Rate limiter
-limiter = Limiter(key_func=get_remote_address, default_limits=[])
+# Rate limiter — use X-Forwarded-For first (needed for Vercel serverless)
+def _safe_get_remote_address(request: Request) -> str:
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    try:
+        if request.client and request.client.host:
+            return request.client.host
+    except Exception:
+        pass
+    return "unknown"
+
+limiter = Limiter(key_func=_safe_get_remote_address, default_limits=[])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
