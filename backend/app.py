@@ -2035,48 +2035,232 @@ async def chat(req: Request, request: ChatRequest):
 # ============================================================
 
 def compute_achievements(roll_no: str) -> dict:
-    """Compute badges, XP and level for a student based on their data."""
-    badges = []
+    """
+    Compute rich tiered achievements, XP and level for a student.
+    Returns earned badges, all-badge catalog (with progress), XP, level.
+    """
     xp = 0
+    earned_ids: set = set()
+
+    # ── Per-assessment stats gathered across ALL sheets ─────────────────────
+    total_assessments   = 0
+    perfect_scores      = 0   # 100 %
+    above_90            = 0   # ≥ 90 %
+    above_75            = 0   # ≥ 75 %
+    above_50            = 0   # ≥ 50 %
+    below_50            = 0   # < 50 %
+    subject_avgs: Dict[str, float] = {}   # sheet → avg pct
+    subject_counts: Dict[str, int] = {}
+
     try:
-        df = pd.read_excel(STUDENTS_FILE)
-        df.columns = [c.strip() for c in df.columns]
-        roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
-        if roll_col:
-            row = df[df[roll_col].astype(str).str.strip().str.upper() == str(roll_no).strip().upper()]
-            if not row.empty:
-                mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment','midterm','internal','marks','test','exam'])]
+        excel_file = pd.ExcelFile(STUDENTS_FILE)
+        norm_roll = str(roll_no).strip().upper()
+        if norm_roll.endswith('.0'):
+            norm_roll = norm_roll[:-2]
+
+        for sheet in excel_file.sheet_names:
+            try:
+                df = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+                df.columns = [c.strip() for c in df.columns]
+                roll_col = next((c for c in df.columns if any(t in c.lower() for t in ['roll no', 'roll_no', 'rollno', 'student id'])), None)
+                if not roll_col:
+                    roll_col = next((c for c in df.columns if 'roll' in c.lower() or 'id' in c.lower()), None)
+                if not roll_col:
+                    continue
+
+                # Find student row
+                match = df[df[roll_col].astype(str).str.strip().str.upper().str.replace(r'\.0$', '', regex=True) == norm_roll]
+                if match.empty:
+                    continue
+
+                row = match.iloc[0]
+                mark_cols = [c for c in df.columns if any(k in c.lower() for k in ['assignment', 'midterm', 'internal', 'marks', 'test', 'exam', 'quiz', 'lab', 'project'])]
+
+                sheet_scores = []
                 for col in mark_cols:
                     try:
-                        val = float(row.iloc[0][col])
+                        val = float(row[col])
                         max_val = df[col].max()
-                        if max_val > 0 and val / max_val >= 0.9:
+                        if max_val <= 0:
+                            continue
+                        pct = val / max_val
+                        total_assessments += 1
+                        sheet_scores.append(pct)
+
+                        if pct >= 1.0:
+                            perfect_scores += 1
+                            xp += 60
+                        elif pct >= 0.90:
+                            above_90 += 1
                             xp += 50
-                        elif max_val > 0 and val / max_val >= 0.75:
+                        elif pct >= 0.75:
+                            above_75 += 1
                             xp += 30
-                        elif max_val > 0 and val / max_val >= 0.5:
+                        elif pct >= 0.50:
+                            above_50 += 1
                             xp += 15
+                        else:
+                            below_50 += 1
+                            xp += 5
                     except Exception:
                         pass
+
+                if sheet_scores:
+                    avg = sum(sheet_scores) / len(sheet_scores)
+                    short = sheet.replace('19CSE', 'CSE ').replace('19IT', 'IT ').replace('19AIML', 'AIML ').strip()
+                    subject_avgs[short] = avg
+                    subject_counts[short] = len(sheet_scores)
+            except Exception:
+                continue
     except Exception:
         pass
 
-    # Assign badges based on XP
-    if xp >= 300:
-        badges.append({"name": "🏆 Legend", "description": "Consistent top performer across all subjects"})
-    if xp >= 200:
-        badges.append({"name": "🌟 Star Scholar", "description": "Exceptionally strong across subjects"})
-    if xp >= 150:
-        badges.append({"name": "🔥 High Achiever", "description": "Outstanding academic performance"})
-    if xp >= 100:
-        badges.append({"name": "📈 Rising Star", "description": "Strong and improving performer"})
-    if xp >= 50:
-        badges.append({"name": "✅ Hard Worker", "description": "Consistent effort across assessments"})
-    if xp < 50:
-        badges.append({"name": "🚀 Rookie", "description": "Just getting started — keep going!"})
+    # ── Master badge catalog ─────────────────────────────────────────────────
+    # Each entry: id, emoji, name, tier(bronze/silver/gold/platinum), category,
+    #             description, unlocked, progress(0-100), xp_reward, hint
+    all_badges = []
 
-    level = min(10, max(1, xp // 50 + 1))
-    return {"badges": badges, "xp": xp, "level": level, "next_level_xp": (level * 50)}
+    def badge(bid, emoji, name, tier, category, desc, unlocked, prog, xp_r, hint=""):
+        all_badges.append({
+            "id": bid, "emoji": emoji, "name": name, "tier": tier,
+            "category": category, "description": desc,
+            "unlocked": unlocked, "progress": min(100, int(prog)),
+            "xp_reward": xp_r, "hint": hint,
+        })
+        if unlocked:
+            earned_ids.add(bid)
+
+    # ── Category: First Steps ──────────────────────────────────────────────
+    badge("first_login",  "🚀", "First Step",     "starter", "First Steps",
+          "Logged in for the first time",
+          True, 100, 10)
+
+    badge("first_assess", "📝", "Assessed",        "starter", "First Steps",
+          "Completed your first assessment",
+          total_assessments >= 1, min(100, total_assessments * 100), 15,
+          "Complete at least 1 assessment")
+
+    badge("five_assess",  "📋", "Active Learner",  "bronze",  "First Steps",
+          "Completed 5 assessments",
+          total_assessments >= 5, min(100, total_assessments / 5 * 100), 25,
+          f"{total_assessments}/5 assessments done")
+
+    # ── Category: Performance ──────────────────────────────────────────────
+    badge("score_50",     "✅", "Getting There",   "bronze",  "Performance",
+          "Score ≥50% in at least 3 assessments",
+          (above_50 + above_75 + above_90 + perfect_scores) >= 3,
+          min(100, (above_50 + above_75 + above_90 + perfect_scores) / 3 * 100), 20,
+          f"{above_50 + above_75 + above_90 + perfect_scores}/3 assessments ≥50%")
+
+    badge("score_75",     "⭐", "Strong Performer", "silver", "Performance",
+          "Score ≥75% in at least 3 assessments",
+          (above_75 + above_90 + perfect_scores) >= 3,
+          min(100, (above_75 + above_90 + perfect_scores) / 3 * 100), 35,
+          f"{above_75 + above_90 + perfect_scores}/3 assessments ≥75%")
+
+    badge("score_90",     "🔥", "High Achiever",   "gold",    "Performance",
+          "Score ≥90% in at least 3 assessments",
+          (above_90 + perfect_scores) >= 3,
+          min(100, (above_90 + perfect_scores) / 3 * 100), 50,
+          f"{above_90 + perfect_scores}/3 assessments ≥90%")
+
+    badge("perfect_1",    "💎", "Perfect Score",   "gold",    "Performance",
+          "Get a 100% on any single assessment",
+          perfect_scores >= 1, min(100, perfect_scores * 100), 60,
+          "Score 100% in any one assessment")
+
+    badge("perfect_3",    "👑", "Perfectionist",   "platinum","Performance",
+          "Get 100% in 3 or more assessments",
+          perfect_scores >= 3, min(100, perfect_scores / 3 * 100), 100,
+          f"{perfect_scores}/3 perfect scores")
+
+    # ── Category: Consistency ──────────────────────────────────────────────
+    high_count = above_75 + above_90 + perfect_scores
+    badge("consistent_3", "🎯", "On Target",       "bronze",  "Consistency",
+          "Score ≥75% in 3 different assessments",
+          high_count >= 3, min(100, high_count / 3 * 100), 30,
+          f"{high_count}/3 assessments ≥75%")
+
+    badge("consistent_5", "🏹", "Sharp Shooter",   "silver",  "Consistency",
+          "Score ≥75% in 5 different assessments",
+          high_count >= 5, min(100, high_count / 5 * 100), 45,
+          f"{high_count}/5 assessments ≥75%")
+
+    badge("consistent_10","🌟", "Star Scholar",    "gold",    "Consistency",
+          "Score ≥75% in 10 different assessments",
+          high_count >= 10, min(100, high_count / 10 * 100), 80,
+          f"{high_count}/10 assessments ≥75%")
+
+    # ── Category: Subject Mastery ──────────────────────────────────────────
+    mastered = [s for s, avg in subject_avgs.items() if avg >= 0.80]
+    badge("master_1",     "📚", "Subject Pro",     "bronze",  "Mastery",
+          "Achieve ≥80% average in any subject",
+          len(mastered) >= 1, 100 if mastered else 0, 40,
+          "Average ≥80% in at least one subject")
+
+    badge("master_2",     "🎓", "Multi-Talented",  "silver",  "Mastery",
+          "Achieve ≥80% average in 2 subjects",
+          len(mastered) >= 2, min(100, len(mastered) / 2 * 100), 65,
+          f"{len(mastered)}/2 subjects mastered")
+
+    badge("master_all",   "🏆", "Legend",          "platinum","Mastery",
+          "Achieve ≥80% average in ALL your subjects",
+          len(mastered) >= len(subject_avgs) > 0,
+          100 if (len(mastered) >= len(subject_avgs) > 0) else (min(100, len(mastered) / max(1, len(subject_avgs)) * 100)),
+          120, f"{len(mastered)}/{len(subject_avgs)} subjects mastered")
+
+    # ── Category: Resilience ──────────────────────────────────────────────
+    badge("no_zeros",     "💪", "Never Give Up",   "bronze",  "Resilience",
+          "Complete every assessment without a zero",
+          total_assessments > 0 and below_50 == 0,
+          100 if (total_assessments > 0 and below_50 == 0) else 50, 30,
+          "No assessment scored below 50%")
+
+    badge("comeback",     "📈", "Rising Star",     "silver",  "Resilience",
+          "Score ≥75% in any assessment after previously scoring below 50%",
+          below_50 > 0 and high_count > 0,
+          100 if (below_50 > 0 and high_count > 0) else 0, 50,
+          "Improve from a low score to ≥75% in any subject")
+
+    # ── Category: XP Milestones ───────────────────────────────────────────
+    badge("xp_100",       "⚡", "Energized",       "bronze",  "XP Milestones",
+          "Earn 100 XP total",
+          xp >= 100, min(100, xp), 0, f"{xp}/100 XP")
+
+    badge("xp_250",       "🔋", "Powered Up",      "silver",  "XP Milestones",
+          "Earn 250 XP total",
+          xp >= 250, min(100, xp / 2.5), 0, f"{xp}/250 XP")
+
+    badge("xp_500",       "🌈", "Unstoppable",     "gold",    "XP Milestones",
+          "Earn 500 XP total",
+          xp >= 500, min(100, xp / 5), 0, f"{xp}/500 XP")
+
+    badge("xp_1000",      "🦋", "Transcendent",    "platinum","XP Milestones",
+          "Earn 1000 XP — the ultimate scholar",
+          xp >= 1000, min(100, xp / 10), 0, f"{xp}/1000 XP")
+
+    # ── Earned badge list (for quick access) ─────────────────────────────
+    earned = [b for b in all_badges if b["unlocked"]]
+    level = min(20, max(1, xp // 50 + 1))
+    next_level_xp = level * 50
+
+    return {
+        "xp": xp,
+        "level": level,
+        "next_level_xp": next_level_xp,
+        "badges": [{"name": f"{b['emoji']} {b['name']}", "description": b["description"]} for b in earned],
+        "all_achievements": all_badges,
+        "earned_count": len(earned),
+        "total_count": len(all_badges),
+        "stats": {
+            "total_assessments": total_assessments,
+            "perfect_scores": perfect_scores,
+            "above_90_pct": above_90,
+            "above_75_pct": above_75,
+            "subjects_mastered": len(mastered),
+            "total_subjects": len(subject_avgs),
+        }
+    }
 
 
 @app.get("/api/student/{roll_no}/achievements")

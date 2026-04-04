@@ -1,41 +1,86 @@
+/* ── Base ───────────────────────────────────────────────────────────── */
 .gam-page { min-height: 100vh; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: white; padding: 20px; }
-.gam-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
-.gam-header h1 { font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.gam-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.gam-header h1 { font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
 .gam-back { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s; }
 .gam-back:hover { background: rgba(255,255,255,0.2); }
 .gam-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; color: white; gap: 16px; }
 .gam-spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #a78bfa; border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.gam-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
-.gam-card { background: rgba(255,255,255,0.07); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 24px; }
-.gam-card h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #c4b5fd; }
-.gam-xp-card { text-align: center; }
-.gam-level-badge { background: linear-gradient(135deg, #7c3aed, #a78bfa); border-radius: 24px; padding: 4px 16px; font-size: 0.85rem; font-weight: 700; display: inline-block; margin-bottom: 10px; }
-.gam-xp-card h2 { justify-content: center; font-size: 2rem; color: #fbbf24; }
-.gam-progress-bar { background: rgba(255,255,255,0.1); border-radius: 8px; height: 12px; margin: 12px 0; overflow: hidden; }
-.gam-progress-fill { background: linear-gradient(90deg, #7c3aed, #a78bfa); height: 100%; border-radius: 8px; transition: width 0.6s ease; }
-.gam-xp-card p { color: rgba(255,255,255,0.6); font-size: 0.9rem; }
-.gam-badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-.gam-badge-item { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; text-align: center; transition: transform 0.2s; }
-.gam-badge-item:hover { transform: translateY(-2px); }
-.gam-badge-emoji { font-size: 2rem; margin-bottom: 6px; }
-.gam-badge-name { font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; }
-.gam-badge-desc { font-size: 0.75rem; color: rgba(255,255,255,0.5); }
+
+/* ── Stats Row ─────────────────────────────────────────────────────── */
+.gam-stats-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; }
+.gam-stat-card { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 18px 20px; flex: 1; min-width: 140px; }
+.gam-xp-card { min-width: 220px; }
+.gam-level-pill { display: inline-block; background: linear-gradient(135deg, #7c3aed, #a78bfa); border-radius: 20px; padding: 3px 14px; font-size: 0.78rem; font-weight: 700; margin-bottom: 8px; }
+.gam-xp-number { font-size: 1.7rem; font-weight: 800; color: #fbbf24; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.gam-progress-wrap { display: flex; flex-direction: column; gap: 4px; }
+.gam-progress-bar { background: rgba(255,255,255,0.1); border-radius: 8px; height: 10px; overflow: hidden; }
+.gam-progress-fill { background: linear-gradient(90deg, #7c3aed, #a78bfa); height: 100%; border-radius: 8px; transition: width 0.7s ease; }
+.gam-progress-label { font-size: 0.75rem; color: rgba(255,255,255,0.5); }
+.gam-count-card { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 4px; }
+.gam-stat-icon { color: #a78bfa; margin-bottom: 4px; }
+.gam-stat-big { font-size: 1.9rem; font-weight: 800; color: #e2e8f0; line-height: 1; }
+.gam-stat-big span { font-size: 1rem; color: rgba(255,255,255,0.4); font-weight: 500; }
+.gam-stat-label { font-size: 0.72rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ── Main Grid ─────────────────────────────────────────────────────── */
+.gam-main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .gam-main-grid { grid-template-columns: 1fr; } }
+
+/* ── Controls ──────────────────────────────────────────────────────── */
+.gam-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.gam-category-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.gam-cat-tab { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; transition: all 0.2s; }
+.gam-cat-tab:hover { background: rgba(255,255,255,0.12); }
+.gam-cat-tab.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-color: transparent; color: white; font-weight: 600; }
+.gam-filter-btns { display: flex; gap: 6px; }
+.gam-filter-btn { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.6); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.78rem; transition: all 0.2s; }
+.gam-filter-btn.active { background: rgba(139,92,246,0.3); border-color: #8b5cf6; color: #c4b5fd; font-weight: 600; }
+
+/* ── Achievements Grid ─────────────────────────────────────────────── */
+.gam-achievements-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 12px; }
+.gam-achieve-card { border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px; transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; }
+.gam-achieve-card.unlocked { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); }
+.gam-achieve-card.unlocked:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.gam-achieve-card.locked { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); opacity: 0.7; }
+/* Tier glow */
+.gam-achieve-card.unlocked.tier-platinum { border-color: rgba(167,139,250,0.5); box-shadow: 0 0 12px rgba(167,139,250,0.2); }
+.gam-achieve-card.unlocked.tier-gold { border-color: rgba(251,191,36,0.4); box-shadow: 0 0 10px rgba(251,191,36,0.15); }
+.gam-achieve-card.unlocked.tier-silver { border-color: rgba(148,163,184,0.4); }
+.gam-achieve-card.unlocked.tier-bronze { border-color: rgba(205,127,50,0.4); }
+.gam-achieve-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+.gam-achieve-emoji { font-size: 1.9rem; line-height: 1; }
+.gam-achieve-card.locked .gam-achieve-emoji { color: rgba(255,255,255,0.3); }
+.gam-tier-badge { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 8px; border-radius: 10px; background: rgba(0,0,0,0.3); }
+.gam-achieve-name { font-weight: 700; font-size: 0.9rem; color: #e2e8f0; }
+.gam-achieve-card.locked .gam-achieve-name { color: rgba(255,255,255,0.4); }
+.gam-achieve-desc { font-size: 0.75rem; color: rgba(255,255,255,0.55); line-height: 1.4; }
+.gam-achieve-hint { font-size: 0.72rem; color: rgba(165,180,252,0.7); background: rgba(99,102,241,0.1); border-radius: 6px; padding: 4px 8px; margin-top: 2px; }
+.gam-achieve-progress { background: rgba(255,255,255,0.08); border-radius: 6px; height: 5px; margin-top: 6px; overflow: hidden; }
+.gam-achieve-progress-fill { background: linear-gradient(90deg, #6366f1, #a78bfa); height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+.gam-achieve-unlocked-badge { font-size: 0.7rem; color: #86efac; margin-top: 4px; font-weight: 600; }
+.gam-empty-state { grid-column: 1/-1; text-align: center; color: rgba(255,255,255,0.4); padding: 40px; }
+
+/* ── Sidebar ───────────────────────────────────────────────────────── */
+.gam-sidebar { display: flex; flex-direction: column; gap: 16px; }
+.gam-card { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 20px; }
+.gam-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; color: #c4b5fd; }
 .gam-leaderboard { display: flex; flex-direction: column; gap: 8px; }
-.gam-lb-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; background: rgba(255,255,255,0.05); transition: background 0.2s; }
-.gam-lb-row:hover { background: rgba(255,255,255,0.1); }
-.gam-top-1 { background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(251,191,36,0.05)) !important; border: 1px solid rgba(251,191,36,0.3); }
-.gam-top-2 { background: linear-gradient(135deg, rgba(148,163,184,0.2), rgba(148,163,184,0.05)) !important; border: 1px solid rgba(148,163,184,0.3); }
-.gam-top-3 { background: linear-gradient(135deg, rgba(205,127,50,0.2), rgba(205,127,50,0.05)) !important; border: 1px solid rgba(205,127,50,0.3); }
-.gam-lb-rank { width: 36px; text-align: center; font-size: 1.2rem; }
-.gam-lb-info { flex: 1; }
-.gam-lb-name { font-weight: 600; display: block; }
-.gam-lb-badge { font-size: 0.75rem; color: rgba(255,255,255,0.5); }
+.gam-lb-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); transition: background 0.2s; }
+.gam-lb-row:hover { background: rgba(255,255,255,0.09); }
+.gam-top-1 { background: linear-gradient(135deg, rgba(251,191,36,0.18), rgba(251,191,36,0.04)) !important; border: 1px solid rgba(251,191,36,0.25); }
+.gam-top-2 { background: linear-gradient(135deg, rgba(148,163,184,0.18), rgba(148,163,184,0.04)) !important; border: 1px solid rgba(148,163,184,0.25); }
+.gam-top-3 { background: linear-gradient(135deg, rgba(205,127,50,0.18), rgba(205,127,50,0.04)) !important; border: 1px solid rgba(205,127,50,0.25); }
+.gam-lb-rank { width: 30px; text-align: center; font-size: 1.1rem; }
+.gam-lb-info { flex: 1; overflow: hidden; }
+.gam-lb-name { font-weight: 600; font-size: 0.88rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gam-lb-badge { font-size: 0.7rem; color: rgba(255,255,255,0.45); }
 .gam-lb-score { text-align: right; }
-.gam-lb-total { display: block; font-weight: 700; color: #a78bfa; }
-.gam-lb-level { font-size: 0.75rem; color: rgba(255,255,255,0.5); }
-.gam-empty { color: rgba(255,255,255,0.4); text-align: center; padding: 20px; }
-.gam-leaderboard-card { grid-column: span 2; }
-.gam-tips-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.gam-tips-list li { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px 14px; font-size: 0.9rem; }
-@media (max-width: 700px) { .gam-leaderboard-card { grid-column: span 1; } }
+.gam-lb-total { display: block; font-weight: 700; font-size: 0.85rem; color: #a78bfa; }
+.gam-lb-level { font-size: 0.7rem; color: rgba(255,255,255,0.4); }
+.gam-empty { color: rgba(255,255,255,0.4); text-align: center; padding: 16px; font-size: 0.85rem; }
+.gam-tips-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.gam-tips-list li { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 9px 12px; font-size: 0.82rem; }
+.gam-achievements-panel { min-width: 0; }
+
