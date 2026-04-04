@@ -132,7 +132,10 @@ export default function InsightsPage() {
 
         {!loading && activeTab === 'peers' && peers && (
           <div className="ins-peers">
-            <p className="ins-peers-msg">{peers.message}</p>
+            <div className="ins-peers-hero">
+              <div className="ins-peers-icon">👥</div>
+              <p className="ins-peers-msg">{peers.message}</p>
+            </div>
             {peers.your_weak_subjects?.length > 0 && (
               <div className="ins-section"><h3>📉 Your Weak Areas</h3>
                 <div className="ins-tags">{peers.your_weak_subjects.map((s: string, i: number) => <span key={i} className="ins-tag ins-tag-red">{s}</span>)}</div>
@@ -149,7 +152,13 @@ export default function InsightsPage() {
                   </div>
                   <div className="ins-buddy-compat">{b.compatibility}</div>
                 </div>
-              )) : <p>No buddy matches found yet.</p>}
+              )) : (
+                <div className="ins-peers-empty">
+                  <div className="ins-empty-icon">🔍</div>
+                  <p className="ins-empty-title">No Buddy Matches Found Yet</p>
+                  <p className="ins-empty-desc">Complete more assessments to get personalized study buddy recommendations!</p>
+                </div>
+              )}
             </div>
           </div>
         )}
