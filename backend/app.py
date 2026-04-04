@@ -2232,6 +2232,7 @@ def find_study_buddies(roll_no: str):
     - Find peers who score >= 70% in those same courses (they can help)
     - Also surface courses where the student is strong so they can mentor others
     Uses Courses.xlsx for correct assessment names and max-marks.
+    Only pairs students within the same department.
     """
     try:
         excel_file = pd.ExcelFile(STUDENTS_FILE)
@@ -2244,6 +2245,12 @@ def find_study_buddies(roll_no: str):
             if v.endswith('.0'):
                 v = v[:-2]
             return v.upper()
+
+        def extract_dept(class_str: str) -> str:
+            """Extract department from class like 'CSE A' → 'CSE'"""
+            if not class_str:
+                return ""
+            return class_str.split()[0].upper() if class_str else ""
 
         def get_roll(row, df):
             for col in df.columns:
@@ -2292,11 +2299,43 @@ def find_study_buddies(roll_no: str):
             return earned / possible if possible > 0 else None
 
         # --- build per-course data ------------------------------------
-        # course_data[course_id] = {roll: pct_score}
+        # --- pre-scan: find target student's department -----------
+        target_dept = None
+        target_roll_normalized = normalize_roll(roll_no)
+        
+        for sheet in excel_file.sheet_names:
+            if sheet not in courses_file.sheet_names:
+                continue
+            try:
+                df_s = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+                df_s.columns = [c.strip() for c in df_s.columns]
+                if 'Class' not in df_s.columns:
+                    continue
+                
+                for _, row in df_s.iterrows():
+                    roll = get_roll(row, df_s)
+                    if roll and normalize_roll(roll) == target_roll_normalized:
+                        class_val = str(row.get('Class', '')).strip()
+                        target_dept = extract_dept(class_val)
+                        break
+                
+                if target_dept:
+                    break
+            except Exception:
+                continue
+        
+        if not target_dept:
+            return {"buddies": [], "message": "Student not found in any department", "your_weak_subjects": []}
+        
+        # --- build course_data only for target department ----------
         course_data: Dict[str, Dict[str, float]] = {}
         name_map: Dict[str, str] = {}
 
         for sheet in excel_file.sheet_names:
+            # Only process sheets for the target department
+            if not sheet.startswith(f"19{target_dept}"):
+                continue
+            
             # Only process sheets that exist in Courses.xlsx (has proper assessment metadata)
             if sheet not in courses_file.sheet_names:
                 continue
