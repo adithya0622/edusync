@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { studentAPI, curriculumAPI } from '../api/api'
 import { useStudent } from '../context/StudentContext'
-import { LogOut, BookOpen, BarChart3, MessageCircle, Pencil, Save, X, Moon, Sun, Flame, Download, Trophy, Heart, Sparkles, TrendingUp, Bell, Search, FileText, AlertTriangle } from 'lucide-react'
+import { LogOut, BookOpen, BarChart3, MessageCircle, Pencil, Save, X, Moon, Sun, Flame, Download, Trophy, Heart, Sparkles, TrendingUp, FileText, AlertTriangle } from 'lucide-react'
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import html2pdf from 'html2pdf.js'
 import '../styles/DashboardPage.css'
@@ -217,6 +217,9 @@ export default function DashboardPage() {
           <button className="db-nav-item" onClick={() => navigate('/report')}>
             <FileText size={17} /><span>Report</span>
           </button>
+          <button className="db-nav-item" onClick={() => navigate('/recommendations')}>
+            <TrendingUp size={17} /><span>AI Recommendations</span>
+          </button>
           <button className="db-nav-item" onClick={() => navigate('/counselor')}>
             <MessageCircle size={17} /><span>AI Counselor</span>
           </button>
@@ -241,14 +244,7 @@ export default function DashboardPage() {
 
         {/* Topbar */}
         <header className="db-topbar">
-          <div className="db-topbar-left">
-            <div className="db-search-box">
-              <Search size={15} className="db-search-icon" />
-              <input type="text" placeholder="Search..." className="db-search-input" readOnly />
-            </div>
-          </div>
           <div className="db-topbar-right">
-            <button className="db-icon-btn" title="Notifications"><Bell size={18} /></button>
             <button className="db-icon-btn" onClick={() => setDarkMode(d => !d)} title="Toggle theme">
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>

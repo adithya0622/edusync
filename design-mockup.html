@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Drop In — UI/UX Design Concept</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #0d0f1a;
+    color: #fff;
+    min-height: 100vh;
+    padding: 40px 20px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+  }
+
+  /* ── PAGE TITLE ── */
+  .page-title {
+    text-align: center;
+  }
+  .page-title h1 {
+    font-size: 2rem; font-weight: 800;
+    background: linear-gradient(135deg, #818cf8, #34d399);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+  }
+  .page-title p { color: #6b7280; font-size: 0.9rem; }
+
+  /* ── LABEL ── */
+  .view-label {
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; color: #818cf8; margin-bottom: 14px;
+    display: flex; align-items: center; gap:8px;
+  }
+  .view-label::before, .view-label::after {
+    content: ''; flex: 1; height: 1px; background: #1e2130;
+  }
+
+  /* ══════════════════════════════════════════
+     DESKTOP MOCKUP
+  ══════════════════════════════════════════ */
+  .desktop-frame {
+    width: 1100px; max-width: 100%;
+    background: #10131f;
+    border-radius: 18px;
+    border: 1px solid #1e2540;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.7), 0 0 0 1px #1e2540;
+    overflow: hidden;
+  }
+
+  /* window chrome */
+  .browser-bar {
+    background: #1a1d2e;
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid #1e2540;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-red { background: #ef4444; }
+  .dot-yellow { background: #f59e0b; }
+  .dot-green { background: #10b981; }
+  .url-bar {
+    flex: 1; background: #0d0f1a; border-radius: 6px;
+    padding: 5px 14px; font-size: 0.75rem; color: #6b7280;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .url-bar svg { flex-shrink: 0; }
+
+  /* main layout */
+  .db-shell {
+    display: flex; height: 660px;
+  }
+
+  /* SIDEBAR */
+  .db-sidebar {
+    width: 200px; min-width: 200px;
+    background: #13162b;
+    border-right: 1px solid #1e2540;
+    display: flex; flex-direction: column; padding: 0;
+  }
+  .db-brand {
+    padding: 20px 16px 16px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid #1e2540;
+  }
+  .brand-logo {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 800; color: white; flex-shrink: 0;
+  }
+  .brand-text-title { font-size: 0.9rem; font-weight: 700; color: #f9fafb; }
+  .brand-text-sub { font-size: 0.6rem; color: #4b5563; line-height: 1.3; }
+  .sidebar-nav { padding: 12px 10px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .nav-section-label { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #4b5563; padding: 10px 8px 4px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 10px; border-radius: 8px;
+    font-size: 0.82rem; color: #6b7280; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .nav-item.active { background: rgba(102,126,234,0.15); color: #818cf8; font-weight: 600; }
+  .nav-item .nav-icon { width: 16px; text-align: center; font-size: 0.85rem; flex-shrink: 0; }
+  .nav-course {
+    font-size: 0.78rem; padding: 6px 10px 6px 28px;
+    color: #818cf8; background: rgba(79,70,229,0.12); border-radius: 6px; margin: 2px 0;
+  }
+  .nav-divider { height: 1px; background: #1e2540; margin: 8px 0; }
+  .sidebar-date { padding: 12px 16px; font-size: 0.7rem; color: #4b5563; border-top: 1px solid #1e2540; }
+
+  /* MAIN */
+  .db-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* TOPBAR */
+  .db-topbar {
+    height: 56px; background: #13162b; border-bottom: 1px solid #1e2540;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 20px; gap: 12px;
+    flex-shrink: 0;
+  }
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: #0d0f1a; border: 1px solid #1e2540; border-radius: 8px;
+    padding: 6px 14px;
+  }
+  .search-box span { font-size: 0.8rem; color: #4b5563; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .icon-btn {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: #1a1d2e; border: 1px solid #1e2540;
+    display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+  }
+  .user-card {
+    display: flex; align-items: center; gap: 8px;
+    background: #1a1d2e; border: 1px solid #1e2540; border-radius: 10px; padding: 6px 12px;
+  }
+  .user-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.78rem; font-weight: 700; color: white; flex-shrink: 0;
+  }
+  .user-name { font-size: 0.78rem; font-weight: 600; color: #f9fafb; }
+  .user-roll { font-size: 0.65rem; color: #6b7280; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px; border-radius: 10px; font-size: 0.65rem; font-weight: 700;
+  }
+  .badge-fire { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
+  .badge-rank { background: linear-gradient(135deg, #ede9fe, #c4b5fd); color: #5b21b6; }
+  .logout-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 6px 12px; background: #1a1d2e; border: 1px solid #1e2540;
+    border-radius: 8px; font-size: 0.75rem; color: #6b7280;
+  }
+
+  /* CONTENT */
+  .db-content { flex: 1; overflow-y: auto; padding: 18px 20px 28px; }
+
+  /* Alert */
+  .db-alert {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(239,68,68,0.1); border: 1px solid #7f1d1d;
+    border-left: 4px solid #ef4444; border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 18px;
+  }
+  .alert-icon { font-size: 1rem; flex-shrink: 0; }
+  .alert-text { flex: 1; font-size: 0.8rem; }
+  .alert-text strong { color: #ef4444; }
+  .alert-detail { font-size: 0.7rem; color: #fca5a5; margin-top: 2px; }
+  .alert-actions { display: flex; gap: 6px; }
+  .alert-btn-primary {
+    padding: 5px 12px; background: #ef4444; border: none; border-radius: 6px;
+    color: white; font-size: 0.72rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .alert-btn-secondary {
+    padding: 5px 12px; background: transparent; border: 1px solid #7f1d1d; border-radius: 6px;
+    color: #fca5a5; font-size: 0.72rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .alert-close { background: none; border: none; color: #6b7280; font-size: 1rem; cursor: pointer; }
+
+  /* STATS GRID */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 20px;
+  }
+  .stat-card {
+    background: #1a1d2e; border: 1px solid #1e2540; border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .stat-label {
+    font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.4px; color: #6b7280;
+  }
+  .stat-value { font-size: 1.9rem; font-weight: 800; color: #f9fafb; line-height: 1; }
+  .stat-sub { font-size: 0.7rem; color: #6b7280; }
+
+  /* sparkline bars */
+  .sparkline { display: flex; align-items: flex-end; gap: 3px; height: 36px; margin-top: auto; }
+  .spark-bar { flex: 1; border-radius: 3px 3px 0 0; min-height: 4px; }
+
+  /* donut SVG */
+  .donut-wrap { display: flex; align-items: center; justify-content: center; height: 90px; }
+
+  /* gauge SVG */
+  .gauge-wrap { display: flex; align-items: center; justify-content: center; height: 90px; }
+
+  /* rank */
+  .rank-display { display: flex; align-items: center; gap: 10px; padding-top: 6px; }
+  .rank-trophy { font-size: 1.8rem; }
+  .rank-value { font-size: 2rem; font-weight: 800; color: #f9fafb; }
+
+  /* BREAKDOWN */
+  .breakdown-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+  }
+  .section-title { font-size: 1rem; font-weight: 700; color: #f9fafb; }
+  .btn-recs {
+    display: flex; align-items: center; gap: 5px; padding: 6px 14px;
+    background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 8px;
+    color: white; font-size: 0.76rem; font-weight: 600; cursor: pointer;
+  }
+  .assignments-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  }
+  .assignment-card {
+    background: #1a1d2e; border: 1px solid #1e2540; border-radius: 14px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+  .assignment-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .assignment-title { font-size: 0.84rem; font-weight: 700; color: #f9fafb; display: flex; align-items: center; gap: 6px; }
+  .pct-chip {
+    font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+  }
+  .curriculum-text { font-size: 0.72rem; color: #6b7280; line-height: 1.4; }
+  .score-circle {
+    width: 48px; height: 48px; border-radius: 50%; border: 3px solid;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .score-val { font-size: 0.95rem; font-weight: 800; line-height: 1; }
+  .score-denom { font-size: 0.55rem; color: #6b7280; }
+  .score-bar { height: 4px; background: #1e2540; border-radius: 99px; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 99px; }
+  .review-btn {
+    width: 100%; padding: 8px;
+    background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 8px;
+    color: white; font-size: 0.76rem; font-weight: 600; cursor: pointer;
+    text-align: center;
+  }
+
+  /* ══════════════════════════════════════
+     MOBILE MOCKUP
+  ══════════════════════════════════════ */
+  .mobile-section { display: flex; flex-direction: column; align-items: center; }
+  .phone-frame {
+    width: 340px;
+    background: #10131f;
+    border-radius: 40px;
+    border: 8px solid #1e2540;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.7), 0 0 0 1px #1e2540, inset 0 0 0 1px #0d0f1a;
+    overflow: hidden;
+    position: relative;
+  }
+  .phone-notch {
+    width: 100px; height: 24px;
+    background: #0d0f1a; border-radius: 0 0 16px 16px;
+    margin: 0 auto; position: relative; z-index: 10;
+  }
+  .phone-screen { padding: 0 0 20px; }
+
+  /* mobile topbar */
+  .mob-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px 12px; background: #13162b;
+    border-bottom: 1px solid #1e2540;
+  }
+  .hamburger { display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
+  .ham-line { width: 20px; height: 2px; background: #9ca3af; border-radius: 2px; }
+  .mob-brand { font-size: 0.9rem; font-weight: 800; color: #f9fafb; }
+  .mob-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; color: white;
+  }
+
+  /* mobile profile strip */
+  .mob-profile {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px 8px;
+    background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
+    border-bottom: 1px solid #1e2540;
+  }
+  .mob-avatar-lg {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; font-weight: 800; color: white; flex-shrink: 0;
+  }
+  .mob-user-name { font-size: 0.84rem; font-weight: 700; color: #f9fafb; }
+  .mob-user-roll { font-size: 0.66rem; color: #6b7280; }
+  .mob-badges { display: flex; gap: 5px; margin-top: 3px; }
+  .mob-content { padding: 12px 10px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* mob alert */
+  .mob-alert {
+    background: rgba(239,68,68,0.1); border: 1px solid #7f1d1d;
+    border-left: 3px solid #ef4444; border-radius: 8px; padding: 9px 11px;
+  }
+  .mob-alert-title { font-size: 0.74rem; font-weight: 700; color: #ef4444; margin-bottom: 3px; }
+  .mob-alert-sub { font-size: 0.68rem; color: #fca5a5; }
+  .mob-alert-btn {
+    margin-top: 7px; width: 100%; padding: 6px; background: #ef4444;
+    border: none; border-radius: 6px; color: white; font-size: 0.7rem; font-weight: 600;
+  }
+
+  /* mob stats 2-col */
+  .mob-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mob-stat-card {
+    background: #1a1d2e; border: 1px solid #1e2540; border-radius: 12px; padding: 10px 12px;
+  }
+  .mob-stat-label { font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; color: #6b7280; margin-bottom: 4px; }
+  .mob-stat-value { font-size: 1.4rem; font-weight: 800; color: #f9fafb; }
+  .mob-stat-badge { font-size: 0.62rem; color: #34d399; font-weight: 600; }
+
+  /* mob assignment card */
+  .mob-assignment {
+    background: #1a1d2e; border: 1px solid #1e2540; border-radius: 12px; padding: 11px 13px;
+  }
+  .mob-assignment-title { font-size: 0.8rem; font-weight: 700; color: #f9fafb; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+  .mob-assignment-sub { font-size: 0.68rem; color: #6b7280; margin-bottom: 6px; }
+  .mob-progress { height: 4px; background: #1e2540; border-radius: 99px; overflow: hidden; margin-bottom: 6px; }
+  .mob-progress-fill { height: 100%; border-radius: 99px; }
+  .mob-review-btn {
+    width: 100%; padding: 6px; background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none; border-radius: 6px; color: white; font-size: 0.7rem; font-weight: 600;
+  }
+
+  /* GLASSMORPHISM card variant */
+  .glass-card {
+    background: rgba(26,29,46,0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  /* annotation labels */
+  .annotation {
+    position: absolute;
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    color: #818cf8; background: #1a1d2e; border: 1px solid #818cf8;
+    border-radius: 4px; padding: 2px 8px;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>Drop In — UI/UX Design Concept</h1>
+  <p>High-fidelity mockup · Dark Mode · Desktop + Mobile</p>
+</div>
+
+<!-- ═══════════════════════ DESKTOP ═══════════════════════ -->
+<div style="width:1100px;max-width:100%">
+  <div class="view-label">Desktop View — 1280px</div>
+  <div class="desktop-frame">
+
+    <!-- Browser chrome -->
+    <div class="browser-bar">
+      <div class="dot dot-red"></div>
+      <div class="dot dot-yellow"></div>
+      <div class="dot dot-green"></div>
+      <div class="url-bar">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        frontend-tau-ten-9qnwt8gh6m.vercel.app/dashboard
+      </div>
+    </div>
+
+    <!-- App shell -->
+    <div class="db-shell">
+
+      <!-- SIDEBAR -->
+      <div class="db-sidebar">
+        <div class="db-brand">
+          <div class="brand-logo">DI</div>
+          <div>
+            <div class="brand-text-title">Drop In</div>
+            <div class="brand-text-sub">Student Learning<br>Recommendations</div>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <div class="nav-item active">
+            <span class="nav-icon">▦</span> Dashboard
+          </div>
+
+          <div class="nav-section-label">Courses</div>
+          <div class="nav-item nav-course">
+            <span style="margin-right:4px">📘</span> 19ADS302
+          </div>
+          <div class="nav-item nav-course" style="background:transparent;color:#4b5563;">
+            <span style="margin-right:4px">📗</span> 19CSE301
+          </div>
+
+          <div class="nav-divider"></div>
+
+          <div class="nav-item"><span class="nav-icon">↓</span> Study Plan</div>
+          <div class="nav-item"><span class="nav-icon">📄</span> Report</div>
+          <div class="nav-item"><span class="nav-icon">💬</span> AI Counselor</div>
+          <div class="nav-item"><span class="nav-icon">🏆</span> Achievements</div>
+          <div class="nav-item"><span class="nav-icon">❤</span> Wellness</div>
+          <div class="nav-item"><span class="nav-icon">✦</span> Insights</div>
+        </nav>
+
+        <div class="sidebar-date">03/04/2026</div>
+      </div>
+
+      <!-- MAIN PANEL -->
+      <div class="db-main">
+
+        <!-- Topbar -->
+        <div class="db-topbar">
+          <div class="search-box">
+            <svg width="13" height="13" fill="none" stroke="#4b5563" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <span>Search...</span>
+          </div>
+          <div class="topbar-right">
+            <div class="icon-btn">🔔</div>
+            <div class="icon-btn">🌙</div>
+            <div class="user-card">
+              <div class="user-avatar">S</div>
+              <div>
+                <div class="user-name">Student 22006</div>
+                <div class="user-roll">Roll No: 22006</div>
+                <div style="display:flex;gap:4px;margin-top:2px">
+                  <span class="badge badge-fire">🔥 1d streak</span>
+                  <span class="badge badge-rank">🏅 Top 33%</span>
+                </div>
+              </div>
+            </div>
+            <div class="logout-btn">
+              <span>→</span> Logout
+            </div>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="db-content">
+
+          <!-- CRITICAL ALERT -->
+          <div class="db-alert">
+            <div class="alert-icon">⚠</div>
+            <div class="alert-text">
+              <strong>CRITICAL ALERT:</strong> Your recent assessment is below 50%
+              <div class="alert-detail">Quiz 2 (19ADS302)</div>
+            </div>
+            <div class="alert-actions">
+              <button class="alert-btn-primary">Revise with AI Counselor</button>
+              <button class="alert-btn-secondary">Adjust Study Plan</button>
+            </div>
+            <button class="alert-close">×</button>
+          </div>
+
+          <!-- STAT CARDS -->
+          <div class="stats-grid">
+
+            <!-- Total Marks -->
+            <div class="stat-card">
+              <div class="stat-label">Total Marks</div>
+              <div class="stat-value">159</div>
+              <div class="sparkline">
+                <div class="spark-bar" style="height:32px;background:#10b981"></div>
+                <div class="spark-bar" style="height:20px;background:#ef4444"></div>
+                <div class="spark-bar" style="height:30px;background:#10b981"></div>
+                <div class="spark-bar" style="height:24px;background:#f59e0b"></div>
+                <div class="spark-bar" style="height:28px;background:#f59e0b"></div>
+                <div class="spark-bar" style="height:32px;background:#10b981"></div>
+              </div>
+            </div>
+
+            <!-- Performance — Donut -->
+            <div class="stat-card">
+              <div class="stat-label">Performance</div>
+              <div class="donut-wrap">
+                <svg viewBox="0 0 120 100" width="120" height="100">
+                  <!-- track -->
+                  <circle cx="60" cy="55" r="36" fill="none" stroke="#1e2540" stroke-width="10"/>
+                  <!-- fill 70% -->
+                  <circle cx="60" cy="55" r="36" fill="none" stroke="#10b981" stroke-width="10"
+                    stroke-dasharray="158 226" stroke-dashoffset="-56" stroke-linecap="round"/>
+                  <text x="60" y="51" text-anchor="middle" font-size="14" font-weight="800" fill="#10b981">70%</text>
+                  <text x="60" y="66" text-anchor="middle" font-size="8" fill="#6b7280">Very Good</text>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Class Rank -->
+            <div class="stat-card">
+              <div class="stat-label">Class Rank</div>
+              <div class="rank-display">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <span class="rank-value">#10</span>
+              </div>
+            </div>
+
+            <!-- Avg Score — Donut -->
+            <div class="stat-card">
+              <div class="stat-label">Avg Score</div>
+              <div class="donut-wrap">
+                <svg viewBox="0 0 120 100" width="120" height="100">
+                  <circle cx="60" cy="55" r="36" fill="none" stroke="#1e2540" stroke-width="10"/>
+                  <circle cx="60" cy="55" r="36" fill="none" stroke="#10b981" stroke-width="10"
+                    stroke-dasharray="158 226" stroke-dashoffset="-56" stroke-linecap="round"/>
+                  <text x="60" y="58" text-anchor="middle" font-size="16" font-weight="900" fill="#10b981">70%</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- MARKS BREAKDOWN -->
+          <div class="breakdown-header">
+            <span class="section-title">Marks Breakdown</span>
+            <button class="btn-recs">
+              <svg width="13" height="13" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              AI Recommendations
+            </button>
+          </div>
+
+          <div class="assignments-grid">
+
+            <!-- Assignment 1 – 100% -->
+            <div class="assignment-card">
+              <div class="assignment-top">
+                <div>
+                  <div class="assignment-title">Assignment 1 <span class="pct-chip" style="background:rgba(16,185,129,0.15);color:#10b981">100%</span></div>
+                  <div class="curriculum-text" style="margin-top:4px">📖 Introduction to Statistical Learning, Bias-Variance Tradeoff…</div>
+                </div>
+                <div class="score-circle" style="border-color:#10b981">
+                  <span class="score-val" style="color:#10b981">10</span>
+                  <span class="score-denom">/10</span>
+                </div>
+              </div>
+              <div class="score-bar"><div class="score-bar-fill" style="width:100%;background:#10b981"></div></div>
+            </div>
+
+            <!-- Quiz 2 – 31% -->
+            <div class="assignment-card">
+              <div class="assignment-top">
+                <div>
+                  <div class="assignment-title">Quiz 2 <span class="pct-chip" style="background:rgba(239,68,68,0.15);color:#ef4444">31%</span></div>
+                  <div class="curriculum-text" style="margin-top:4px">📖 Support Vector Machines (SVM), Kernel Functions…</div>
+                </div>
+                <div class="score-circle" style="border-color:#ef4444">
+                  <span class="score-val" style="color:#ef4444">3.1</span>
+                  <span class="score-denom">/10</span>
+                </div>
+              </div>
+              <div class="score-bar"><div class="score-bar-fill" style="width:31%;background:#ef4444"></div></div>
+              <button class="review-btn">Get Tailored AI Review</button>
+            </div>
+
+            <!-- Mid Lab Exam – 61% -->
+            <div class="assignment-card">
+              <div class="assignment-top">
+                <div>
+                  <div class="assignment-title">Mid Lab Exam <span class="pct-chip" style="background:rgba(245,158,11,0.15);color:#f59e0b">61%</span></div>
+                  <div class="curriculum-text" style="margin-top:4px">📖 Implement and evaluate Regression and Classification models…</div>
+                </div>
+                <div class="score-circle" style="border-color:#f59e0b">
+                  <span class="score-val" style="color:#f59e0b">18.3</span>
+                  <span class="score-denom">/30</span>
+                </div>
+              </div>
+              <div class="score-bar"><div class="score-bar-fill" style="width:61%;background:#f59e0b"></div></div>
+              <button class="review-btn">Get Tailored AI Review</button>
+            </div>
+
+          </div>
+
+        </div><!-- end db-content -->
+      </div><!-- end db-main -->
+    </div><!-- end db-shell -->
+  </div><!-- end desktop-frame -->
+</div>
+
+<!-- ═══════════════════════ MOBILE ═══════════════════════ -->
+<div class="mobile-section">
+  <div class="view-label" style="width:340px">Mobile View — 390px (Portrait)</div>
+  <div class="phone-frame">
+    <div class="phone-notch"></div>
+    <div class="phone-screen">
+
+      <!-- Mobile Topbar -->
+      <div class="mob-topbar">
+        <div class="hamburger">
+          <div class="ham-line"></div>
+          <div class="ham-line"></div>
+          <div class="ham-line"></div>
+        </div>
+        <span class="mob-brand">Drop In</span>
+        <div class="mob-avatar">S</div>
+      </div>
+
+      <!-- Profile strip -->
+      <div class="mob-profile">
+        <div class="mob-avatar-lg">S</div>
+        <div>
+          <div class="mob-user-name">Student 22006</div>
+          <div class="mob-user-roll">Roll No: 22006 · 19ADS302</div>
+          <div class="mob-badges">
+            <span class="badge badge-fire" style="font-size:0.6rem">🔥 1d streak</span>
+            <span class="badge badge-rank" style="font-size:0.6rem">🏅 Top 33%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mob-content">
+
+        <!-- Alert -->
+        <div class="mob-alert">
+          <div class="mob-alert-title">⚠ CRITICAL ALERT</div>
+          <div class="mob-alert-sub">Quiz 2 is below 50% (31%)</div>
+          <button class="mob-alert-btn">Revise with AI Counselor</button>
+        </div>
+
+        <!-- Stats 2-col -->
+        <div class="mob-stats">
+          <div class="mob-stat-card">
+            <div class="mob-stat-label">Total Marks</div>
+            <div class="mob-stat-value">159</div>
+            <div class="sparkline" style="height:28px;margin-top:6px">
+              <div class="spark-bar" style="height:22px;background:#10b981"></div>
+              <div class="spark-bar" style="height:14px;background:#ef4444"></div>
+              <div class="spark-bar" style="height:20px;background:#10b981"></div>
+              <div class="spark-bar" style="height:16px;background:#f59e0b"></div>
+              <div class="spark-bar" style="height:20px;background:#10b981"></div>
+            </div>
+          </div>
+          <div class="mob-stat-card">
+            <div class="mob-stat-label">Performance</div>
+            <svg viewBox="0 0 100 80" width="100%" height="70">
+              <circle cx="50" cy="45" r="28" fill="none" stroke="#1e2540" stroke-width="8"/>
+              <circle cx="50" cy="45" r="28" fill="none" stroke="#10b981" stroke-width="8"
+                stroke-dasharray="123 176" stroke-dashoffset="-44" stroke-linecap="round"/>
+              <text x="50" y="42" text-anchor="middle" font-size="12" font-weight="800" fill="#10b981">70%</text>
+              <text x="50" y="55" text-anchor="middle" font-size="7" fill="#6b7280">Very Good</text>
+            </svg>
+          </div>
+          <div class="mob-stat-card">
+            <div class="mob-stat-label">Class Rank</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <span class="mob-stat-value">#10</span>
+            </div>
+          </div>
+          <div class="mob-stat-card">
+            <div class="mob-stat-label">Avg Score</div>
+            <svg viewBox="0 0 100 80" width="100%" height="70">
+              <circle cx="50" cy="45" r="28" fill="none" stroke="#1e2540" stroke-width="8"/>
+              <circle cx="50" cy="45" r="28" fill="none" stroke="#10b981" stroke-width="8"
+                stroke-dasharray="123 176" stroke-dashoffset="-44" stroke-linecap="round"/>
+              <text x="50" y="49" text-anchor="middle" font-size="14" font-weight="900" fill="#10b981">70%</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Section header -->
+        <div style="font-size:0.82rem;font-weight:700;color:#f9fafb;padding:2px 0">Marks Breakdown</div>
+
+        <!-- Assignment card 1 -->
+        <div class="mob-assignment">
+          <div class="mob-assignment-title">
+            Assignment 1
+            <span class="pct-chip" style="background:rgba(16,185,129,0.15);color:#10b981">100%</span>
+          </div>
+          <div class="mob-assignment-sub">Statistical Learning, Bias-Variance…</div>
+          <div class="mob-progress"><div class="mob-progress-fill" style="width:100%;background:#10b981"></div></div>
+        </div>
+
+        <!-- Assignment card 2 -->
+        <div class="mob-assignment">
+          <div class="mob-assignment-title">
+            Quiz 2
+            <span class="pct-chip" style="background:rgba(239,68,68,0.15);color:#ef4444">31%</span>
+          </div>
+          <div class="mob-assignment-sub">SVM, Kernel Functions, Polynomial…</div>
+          <div class="mob-progress"><div class="mob-progress-fill" style="width:31%;background:#ef4444"></div></div>
+          <button class="mob-review-btn">Get Tailored AI Review</button>
+        </div>
+
+        <!-- Assignment card 3 -->
+        <div class="mob-assignment">
+          <div class="mob-assignment-title">
+            Mid Lab Exam
+            <span class="pct-chip" style="background:rgba(245,158,11,0.15);color:#f59e0b">61%</span>
+          </div>
+          <div class="mob-assignment-sub">Regression and Classification models…</div>
+          <div class="mob-progress"><div class="mob-progress-fill" style="width:61%;background:#f59e0b"></div></div>
+          <button class="mob-review-btn">Get Tailored AI Review</button>
+        </div>
+
+      </div><!-- end mob-content -->
+    </div><!-- end phone-screen -->
+  </div><!-- end phone-frame -->
+</div>
+
+<!-- footer note -->
+<div style="text-align:center;color:#4b5563;font-size:0.75rem;margin-top:8px">
+  This is a static design mockup &mdash; open in any browser to view. No changes were made to the live website.
+</div>
+
+</body>
+</html>
