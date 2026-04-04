@@ -67,6 +67,12 @@ limiter = Limiter(key_func=_safe_get_remote_address, default_limits=[])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    print(f"Unhandled exception: {traceback.format_exc()}")
+    return JSONResponse(status_code=500, content={"error": str(exc), "type": type(exc).__name__})
+
 # CORS - locked to known origins
 ALLOWED_ORIGINS = [
     "https://frontend-1jhn7wagh-adithya061222-7750s-projects.vercel.app",
@@ -1976,7 +1982,6 @@ ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", Fernet.generate_key().decode())
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
 @app.post("/api/chat", response_model=ChatResponse)
-@limiter.limit("15/minute")
 async def chat(req: Request, request: ChatRequest):
     """
     AI Academic Counselor endpoint
