@@ -2226,83 +2226,200 @@ def wellness_check(data: WellnessInput):
 
 @app.get("/api/student/{roll_no}/study-buddies")
 def find_study_buddies(roll_no: str):
+    """
+    Pair students complementarily:
+    - Find courses where the requesting student scores < 60%
+    - Find peers who score >= 70% in those same courses (they can help)
+    - Also surface courses where the student is strong so they can mentor others
+    Uses Courses.xlsx for correct assessment names and max-marks.
+    """
     try:
         excel_file = pd.ExcelFile(STUDENTS_FILE)
-        all_students: dict = {}   # roll -> {sheet::col: pct_score}
-        name_map: dict = {}
+        courses_file = pd.ExcelFile(COURSES_FILE)
+
+        # --- helpers --------------------------------------------------
+        def get_roll(row, df):
+            for col in df.columns:
+                if any(t in col.lower() for t in ['roll', 'student id', 'student_id', 'id']):
+                    val = str(row[col]).strip()
+                    if val and val.lower() not in ('nan', ''):
+                        return val
+            return None
+
+        def get_name(row, df):
+            for col in df.columns:
+                if 'name' in col.lower():
+                    val = str(row[col]).strip()
+                    if val and val.lower() not in ('nan', ''):
+                        return val
+            return "Peer"
+
+        def course_pct(row, assessments, max_map):
+            """Return percentage 0-1 for a student row across the given assessments."""
+            earned, possible = 0.0, 0.0
+            for a in assessments:
+                max_m = max_map.get(a, 0)
+                if max_m <= 0:
+                    continue
+                val = row.get(a)
+                if val is None:
+                    # try "X Converted"
+                    val = row.get(f"{a} Converted")
+                try:
+                    earned += float(val or 0)
+                    possible += max_m
+                except (ValueError, TypeError):
+                    pass
+            return earned / possible if possible > 0 else None
+
+        # --- build per-course data ------------------------------------
+        # course_data[course_id] = {roll: pct_score}
+        course_data: Dict[str, Dict[str, float]] = {}
+        name_map: Dict[str, str] = {}
 
         for sheet in excel_file.sheet_names:
-            df = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
-            df.columns = [c.strip() for c in df.columns]
-            roll_col = next((c for c in df.columns if 'roll' in c.lower()), None)
-            name_col = next((c for c in df.columns if 'name' in c.lower()), None)
-            mark_cols = [c for c in df.columns if any(k in c.lower() for k in [
-                'mark', 'score', 'test', 'quiz', 'exam', 'assignment', 'lab'
-            ]) and 'converted' not in c.lower()]
-            if not roll_col or not mark_cols:
+            # Only process sheets that exist in Courses.xlsx (has proper assessment metadata)
+            if sheet not in courses_file.sheet_names:
                 continue
-            for _, row in df.iterrows():
-                r = str(row[roll_col]).strip()
-                if not r or r.lower() in ('nan', ''):
-                    continue
-                if r not in all_students:
-                    all_students[r] = {}
-                    if name_col:
-                        name_map[r] = str(row[name_col]).strip()
-                for col in mark_cols:
+
+            try:
+                df_s = pd.read_excel(STUDENTS_FILE, sheet_name=sheet, engine='openpyxl')
+                df_c = pd.read_excel(COURSES_FILE, sheet_name=sheet, engine='openpyxl')
+                df_s.columns = [c.strip() for c in df_s.columns]
+                df_c.columns = [c.strip() for c in df_c.columns]
+            except Exception:
+                continue
+
+            if 'Assessments' not in df_c.columns:
+                continue
+
+            # Read assessment names from Courses.xlsx
+            assessments = [str(a).strip() for a in df_c['Assessments'].dropna()]
+            if not assessments:
+                continue
+
+            # Build max marks map for this course
+            max_col = next(
+                (c for c in df_c.columns if 'converted' in c.lower() and 'mark' in c.lower()),
+                next((c for c in df_c.columns if 'total' in c.lower() and 'mark' in c.lower()), None)
+            )
+            if not max_col:
+                continue
+            max_map: Dict[str, float] = {}
+            for _, cr in df_c.iterrows():
+                a = str(cr['Assessments']).strip() if pd.notna(cr['Assessments']) else None
+                if a:
                     try:
-                        val = float(row[col])
-                        max_val = pd.to_numeric(df[col], errors='coerce').max()
-                        pct = val / max_val if max_val and max_val > 0 else 0
-                        all_students[r][f"{sheet}::{col}"] = pct
-                    except Exception:
+                        max_map[a] = float(cr[max_col])
+                    except (ValueError, TypeError):
                         pass
 
-        # Find the requesting student (case-insensitive)
-        target_key = next((k for k in all_students if k.upper() == roll_no.strip().upper()), None)
-        if not target_key or not all_students[target_key]:
+            course_data[sheet] = {}
+            for _, row in df_s.iterrows():
+                roll = get_roll(row, df_s)
+                if not roll:
+                    continue
+                pct = course_pct(row.to_dict(), assessments, max_map)
+                if pct is not None:
+                    course_data[sheet][roll] = round(pct, 3)
+                    if roll not in name_map:
+                        name_map[roll] = get_name(row, df_s)
+
+        if not course_data:
             return {"buddies": [], "message": "Insufficient data for peer matching", "your_weak_subjects": []}
 
-        target_scores = all_students[target_key]
-        # Identify the student's 3 weakest assessment columns
-        sorted_scores = sorted(target_scores.items(), key=lambda x: x[1])
-        weak_keys = [k.split("::")[-1] for k, v in sorted_scores if v < 0.6][:3]
+        # --- find the requesting student (case-insensitive) -----------
+        def find_roll(target: str) -> Optional[str]:
+            for course_scores in course_data.values():
+                for r in course_scores:
+                    if r.strip().upper() == target.strip().upper():
+                        return r
+            return None
 
+        target_roll = find_roll(roll_no)
+        if not target_roll:
+            return {"buddies": [], "message": "Insufficient data for peer matching", "your_weak_subjects": []}
+
+        # --- categorise MY performance per course ---------------------
+        my_weak: List[str] = []    # courses where I score < 60%
+        my_strong: List[str] = []  # courses where I score >= 70%
+
+        for course_id, scores in course_data.items():
+            my_pct = scores.get(target_roll)
+            if my_pct is None:
+                continue
+            if my_pct < 0.60:
+                my_weak.append(course_id)
+            elif my_pct >= 0.70:
+                my_strong.append(course_id)
+
+        # --- collect ALL peer rolls ------------------------------------
+        all_rolls = set()
+        for scores in course_data.values():
+            all_rolls.update(scores.keys())
+        all_rolls.discard(target_roll)
+
+        # --- score each peer ------------------------------------------
         buddies = []
-        for peer_roll, peer_scores in all_students.items():
-            if peer_roll.upper() == roll_no.strip().upper():
+        for peer_roll in all_rolls:
+            # Courses where peer is strong and I am weak → they can help me
+            can_help_me: List[str] = []
+            for course_id in my_weak:
+                peer_pct = course_data[course_id].get(peer_roll)
+                if peer_pct is not None and peer_pct >= 0.70:
+                    can_help_me.append(course_id)
+
+            # Courses where I am strong and peer is weak → I can help them
+            i_can_help: List[str] = []
+            for course_id in my_strong:
+                peer_pct = course_data[course_id].get(peer_roll)
+                if peer_pct is not None and peer_pct < 0.60:
+                    i_can_help.append(course_id)
+
+            if not can_help_me and not i_can_help:
                 continue
-            strong_in = []
-            for k, v in peer_scores.items():
-                col_name = k.split("::")[-1]
-                if col_name in weak_keys and v >= 0.70:
-                    label = col_name.replace("_", " ").title()
-                    if label not in strong_in:
-                        strong_in.append(label)
-            if not strong_in:
-                continue
-            compatibility = min(100, len(strong_in) * 40 + 20)
+
+            # Compatibility score: weighted by mutual help
+            compat = min(100, len(can_help_me) * 35 + len(i_can_help) * 25 + 15)
+
             peer_achieve = compute_achievements(peer_roll)
             peer_name = name_map.get(peer_roll, "Peer")
+
+            # Build readable "strong in" labels
+            strong_labels = [c.strip() for c in can_help_me[:3]]
+            mutual_labels = [c.strip() for c in i_can_help[:2]]
+
             buddies.append({
                 "masked_roll": mask_roll_no(peer_roll),
-                "name": peer_name[:15] + "..." if len(peer_name) > 15 else peer_name,
-                "strong_in": strong_in[:3],
+                "name": peer_name[:18] + "…" if len(peer_name) > 18 else peer_name,
+                "strong_in": strong_labels,
+                "can_help_you_with": strong_labels,
+                "you_can_help_with": mutual_labels,
                 "level": peer_achieve["level"],
-                "top_badge": peer_achieve["badges"][0]["name"] if peer_achieve.get("badges") else "Rookie",
-                "compatibility": f"{compatibility}%"
+                "top_badge": peer_achieve["badges"][0]["name"] if peer_achieve.get("badges") else "Student",
+                "compatibility": f"{compat}%",
             })
 
-        buddies = sorted(buddies, key=lambda x: int(x["compatibility"].replace("%", "")), reverse=True)[:5]
+        buddies = sorted(buddies, key=lambda x: int(x["compatibility"].replace("%", "")), reverse=True)[:6]
+
+        weak_labels = [c.strip() for c in my_weak[:4]]
+        msg = (
+            f"Found {len(buddies)} compatible study {'buddy' if len(buddies)==1 else 'buddies'}! "
+            "Students strong in your weak areas are listed below."
+            if buddies else
+            "No complementary matches yet — your scores are well-balanced across all courses!"
+        )
+
         return {
             "buddies": buddies,
-            "your_weak_subjects": [s.replace("_", " ").title() for s in weak_keys],
-            "message": (
-                f"Found {len(buddies)} compatible study buddies!" if buddies
-                else "No study buddies found yet — keep working on your assessments!"
-            )
+            "your_weak_subjects": weak_labels,
+            "your_strong_subjects": [c.strip() for c in my_strong[:4]],
+            "message": msg,
         }
+
     except Exception as e:
+        import traceback
+        print(f"Peer matching error: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

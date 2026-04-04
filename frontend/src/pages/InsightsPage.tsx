@@ -136,21 +136,43 @@ export default function InsightsPage() {
               <div className="ins-peers-icon">👥</div>
               <p className="ins-peers-msg">{peers.message}</p>
             </div>
-            {peers.your_weak_subjects?.length > 0 && (
-              <div className="ins-section"><h3>📉 Your Weak Areas</h3>
-                <div className="ins-tags">{peers.your_weak_subjects.map((s: string, i: number) => <span key={i} className="ins-tag ins-tag-red">{s}</span>)}</div>
-              </div>
-            )}
-            <div className="ins-section"><h3>👥 Recommended Study Buddies</h3>
+            <div className="ins-peers-subjects-row">
+              {peers.your_weak_subjects?.length > 0 && (
+                <div className="ins-section ins-peers-subject-col">
+                  <h3>📉 You Need Help In</h3>
+                  <div className="ins-tags">{peers.your_weak_subjects.map((s: string, i: number) => <span key={i} className="ins-tag ins-tag-red">{s}</span>)}</div>
+                </div>
+              )}
+              {peers.your_strong_subjects?.length > 0 && (
+                <div className="ins-section ins-peers-subject-col">
+                  <h3>💪 You Can Mentor In</h3>
+                  <div className="ins-tags">{peers.your_strong_subjects.map((s: string, i: number) => <span key={i} className="ins-tag ins-tag-green">{s}</span>)}</div>
+                </div>
+              )}
+            </div>
+            <div className="ins-section"><h3>🤝 Recommended Study Buddies</h3>
               {peers.buddies?.length > 0 ? peers.buddies.map((b: any, i: number) => (
                 <div key={i} className="ins-buddy">
                   <div className="ins-buddy-avatar">{b.name[0]}</div>
                   <div className="ins-buddy-info">
-                    <span className="ins-buddy-name">{b.name}</span>
+                    <div className="ins-buddy-header">
+                      <span className="ins-buddy-name">{b.name}</span>
+                      <div className="ins-buddy-compat">{b.compatibility}</div>
+                    </div>
                     <span className="ins-buddy-badge">{b.top_badge} · Lv {b.level}</span>
-                    <div className="ins-buddy-strong">Strong in: {b.strong_in?.join(', ')}</div>
+                    {b.can_help_you_with?.length > 0 && (
+                      <div className="ins-buddy-row">
+                        <span className="ins-buddy-label ins-buddy-label-help">Can help you with:</span>
+                        <span className="ins-buddy-courses ins-buddy-courses-help">{b.can_help_you_with.join(', ')}</span>
+                      </div>
+                    )}
+                    {b.you_can_help_with?.length > 0 && (
+                      <div className="ins-buddy-row">
+                        <span className="ins-buddy-label ins-buddy-label-mentor">You can mentor:</span>
+                        <span className="ins-buddy-courses ins-buddy-courses-mentor">{b.you_can_help_with.join(', ')}</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="ins-buddy-compat">{b.compatibility}</div>
                 </div>
               )) : (
                 <div className="ins-peers-empty">

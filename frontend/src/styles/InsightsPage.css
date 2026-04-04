@@ -34,17 +34,27 @@
 .ins-peers-hero { background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.1)); border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 24px; border: 1px solid rgba(139, 92, 246, 0.2); }
 .ins-peers-icon { font-size: 3rem; margin-bottom: 12px; }
 .ins-peers-msg { color: rgba(255,255,255,0.85); font-size: 1.05rem; font-weight: 500; }
+.ins-peers-subjects-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+.ins-peers-subject-col { flex: 1; min-width: 200px; }
 .ins-peers-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.15); border-radius: 16px; padding: 48px 24px; text-align: center; }
 .ins-empty-icon { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.8; }
 .ins-empty-title { font-size: 1.2rem; font-weight: 600; color: rgba(255,255,255,0.9); margin-bottom: 8px; }
 .ins-empty-desc { font-size: 0.9rem; color: rgba(255,255,255,0.6); max-width: 300px; }
-.ins-buddy { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; }
-.ins-buddy-avatar { width: 42px; height: 42px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; flex-shrink: 0; }
+.ins-buddy { display: flex; align-items: flex-start; gap: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; transition: background 0.2s; }
+.ins-buddy:hover { background: rgba(255,255,255,0.08); }
+.ins-buddy-avatar { width: 44px; height: 44px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.2rem; flex-shrink: 0; }
 .ins-buddy-info { flex: 1; }
-.ins-buddy-name { display: block; font-weight: 600; }
-.ins-buddy-badge { font-size: 0.75rem; color: rgba(255,255,255,0.5); }
-.ins-buddy-strong { font-size: 0.8rem; color: #86efac; margin-top: 2px; }
-.ins-buddy-compat { font-size: 1.1rem; font-weight: 700; color: #a5b4fc; }
+.ins-buddy-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+.ins-buddy-name { font-weight: 700; font-size: 1rem; }
+.ins-buddy-badge { font-size: 0.75rem; color: rgba(255,255,255,0.45); display: block; margin-bottom: 6px; }
+.ins-buddy-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; margin-top: 4px; }
+.ins-buddy-label { font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+.ins-buddy-label-help { color: #a5b4fc; }
+.ins-buddy-label-mentor { color: #86efac; }
+.ins-buddy-courses { font-size: 0.8rem; }
+.ins-buddy-courses-help { color: rgba(165,180,252,0.85); }
+.ins-buddy-courses-mentor { color: rgba(134,239,172,0.85); }
+.ins-buddy-compat { font-size: 1rem; font-weight: 700; color: #a5b4fc; white-space: nowrap; }
 /* Career */
 .ins-career-card { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
 .ins-career-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
