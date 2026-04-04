@@ -160,6 +160,7 @@ export default function InsightsPage() {
                       <div className="ins-buddy-compat">{b.compatibility}</div>
                     </div>
                     <span className="ins-buddy-badge">{b.top_badge} · Lv {b.level}</span>
+                    <span className="ins-buddy-rollno">Roll: {b.roll_no}</span>
                     {b.can_help_you_with?.length > 0 && (
                       <div className="ins-buddy-row">
                         <span className="ins-buddy-label ins-buddy-label-help">Can help you with:</span>

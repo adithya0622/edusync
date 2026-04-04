@@ -2454,7 +2454,7 @@ def find_study_buddies(roll_no: str):
             mutual_labels = [fmt_course(c) for c in i_can_help[:2]]
 
             buddies.append({
-                "masked_roll": mask_roll_no(peer_roll),
+                "roll_no": peer_roll,
                 "name": peer_display,
                 "strong_in": strong_labels,
                 "can_help_you_with": strong_labels,
