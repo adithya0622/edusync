@@ -2238,15 +2238,34 @@ def find_study_buddies(roll_no: str):
         courses_file = pd.ExcelFile(COURSES_FILE)
 
         # --- helpers --------------------------------------------------
+        def normalize_roll(val: str) -> str:
+            """Strip float suffix, leading zeros noise, and uppercase for consistent matching."""
+            v = val.strip()
+            if v.endswith('.0'):
+                v = v[:-2]
+            return v.upper()
+
         def get_roll(row, df):
             for col in df.columns:
-                if any(t in col.lower() for t in ['roll', 'student id', 'student_id', 'id']):
+                if any(t in col.lower() for t in ['roll no', 'roll_no', 'rollno', 'student id', 'student_id']):
                     val = str(row[col]).strip()
                     if val and val.lower() not in ('nan', ''):
-                        return val
+                        return normalize_roll(val)
+            # fallback: first column that looks numeric and non-empty
+            for col in df.columns:
+                if 'id' in col.lower() or 'roll' in col.lower():
+                    val = str(row[col]).strip()
+                    if val and val.lower() not in ('nan', ''):
+                        return normalize_roll(val)
             return None
 
         def get_name(row, df):
+            for col in df.columns:
+                if 'student name' in col.lower() or col.lower() == 'name':
+                    val = str(row[col]).strip()
+                    if val and val.lower() not in ('nan', ''):
+                        return val
+            # fallback: any column with 'name'
             for col in df.columns:
                 if 'name' in col.lower():
                     val = str(row[col]).strip()
@@ -2330,9 +2349,10 @@ def find_study_buddies(roll_no: str):
 
         # --- find the requesting student (case-insensitive) -----------
         def find_roll(target: str) -> Optional[str]:
+            norm = normalize_roll(target)
             for course_scores in course_data.values():
                 for r in course_scores:
-                    if r.strip().upper() == target.strip().upper():
+                    if normalize_roll(r) == norm:
                         return r
             return None
 
