@@ -2442,9 +2442,9 @@ def find_study_buddies(roll_no: str):
             compat = min(100, len(can_help_me) * 35 + len(i_can_help) * 25 + 15)
 
             peer_achieve = compute_achievements(peer_roll)
-            # Since Students.xlsx has no name column, use "Student ROLL" format
+            # Show full roll number - user should be able to see it
             stored_name = name_map.get(peer_roll, "")
-            peer_display = stored_name if stored_name and stored_name != "Peer" else f"Student {mask_roll_no(peer_roll)}"
+            peer_display = stored_name if stored_name and stored_name != "Peer" else f"Student {peer_roll}"
 
             # Build readable course labels (strip leading "19" prefix for brevity)
             def fmt_course(c):
