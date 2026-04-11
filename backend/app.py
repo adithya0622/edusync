@@ -49,7 +49,41 @@ try:
 except ImportError:
     mlcode = None
 
-app = FastAPI(title="Drop In - Student Learning Recommendation System")
+# ==================== Application Config (all tuneable via env vars) ====================
+APP_TITLE = os.getenv("APP_TITLE", "Drop In - Student Learning Recommendation System")
+APP_HOST  = os.getenv("APP_HOST", "0.0.0.0")
+APP_PORT  = int(os.getenv("APP_PORT", "8080"))
+
+# Performance level percentage thresholds (fraction of max possible marks)
+PERF_EXCELLENT    = float(os.getenv("PERF_EXCELLENT",    "0.80"))
+PERF_VERY_GOOD    = float(os.getenv("PERF_VERY_GOOD",    "0.60"))
+PERF_GOOD         = float(os.getenv("PERF_GOOD",         "0.40"))
+PERF_SATISFACTORY = float(os.getenv("PERF_SATISFACTORY", "0.20"))
+FALLBACK_MAX_MARKS = float(os.getenv("FALLBACK_MAX_MARKS", "250"))
+
+# Recommendation threshold: below this % of max marks → strategy is suggested
+RECO_THRESHOLD = float(os.getenv("RECO_THRESHOLD", "0.60"))
+
+# Peer matching thresholds
+BUDDY_WEAK_THRESHOLD   = float(os.getenv("BUDDY_WEAK_THRESHOLD",   "0.60"))
+BUDDY_STRONG_THRESHOLD = float(os.getenv("BUDDY_STRONG_THRESHOLD", "0.70"))
+
+# Gamification
+XP_PER_LEVEL = int(os.getenv("XP_PER_LEVEL", "50"))
+MAX_LEVEL    = int(os.getenv("MAX_LEVEL",    "20"))
+MASTERY_PCT  = float(os.getenv("MASTERY_PCT", "0.80"))
+
+# Wellness / burnout scoring thresholds
+BURNOUT_HIGH_THRESHOLD     = int(os.getenv("BURNOUT_HIGH_THRESHOLD",     "60"))
+BURNOUT_MODERATE_THRESHOLD = int(os.getenv("BURNOUT_MODERATE_THRESHOLD", "35"))
+
+# Forecast grade thresholds (predicted percentage)
+FORECAST_A_THRESHOLD = float(os.getenv("FORECAST_A_THRESHOLD", "80"))
+FORECAST_B_THRESHOLD = float(os.getenv("FORECAST_B_THRESHOLD", "65"))
+FORECAST_C_THRESHOLD = float(os.getenv("FORECAST_C_THRESHOLD", "50"))
+# =================================================================================
+
+app = FastAPI(title=APP_TITLE)
 
 # Rate limiter — use X-Forwarded-For first (needed for Vercel serverless)
 def _safe_get_remote_address(request: Request) -> str:
@@ -105,8 +139,8 @@ VALID_API_KEYS = [k for k in [os.getenv("API_KEY")] if k]
 # ==================== JWT / Password Security ====================
 DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "demo123")
 JWT_SECRET = os.getenv("JWT_SECRET", "dropin-jwt-secret-2026-change-in-prod")
-JWT_ALGORITHM = "HS256"
-TOKEN_EXPIRE_HOURS = 8
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+TOKEN_EXPIRE_HOURS = int(os.getenv("TOKEN_EXPIRE_HOURS", "8"))
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -358,7 +392,7 @@ def get_student_results(roll_no: str, class_name: str = None) -> dict:
                                     if 'total' in col.lower() and 'mark' in col.lower():
                                         max_marks_col = col
                                         break
-                            threshold_pct = 0.60
+                            threshold_pct = RECO_THRESHOLD
                             for idx, row in df_c.iterrows():
                                 assessment_name = str(row['Assessments']).strip() if pd.notna(row['Assessments']) else None
                                 if not assessment_name:
@@ -515,25 +549,25 @@ def get_performance_level(total_marks: float, course_id: str = None) -> str:
 
     if max_possible > 0:
         pct = total_marks / max_possible
-        if pct >= 0.80:
+        if pct >= PERF_EXCELLENT:
             return "Excellent"
-        elif pct >= 0.60:
+        elif pct >= PERF_VERY_GOOD:
             return "Very Good"
-        elif pct >= 0.40:
+        elif pct >= PERF_GOOD:
             return "Good"
-        elif pct >= 0.20:
+        elif pct >= PERF_SATISFACTORY:
             return "Satisfactory"
         else:
             return "Needs Improvement"
     else:
         # Fallback when Courses.xlsx is not available
-        if total_marks >= 200:
+        if total_marks >= FALLBACK_MAX_MARKS * PERF_EXCELLENT:
             return "Excellent"
-        elif total_marks >= 150:
+        elif total_marks >= FALLBACK_MAX_MARKS * PERF_VERY_GOOD:
             return "Very Good"
-        elif total_marks >= 100:
+        elif total_marks >= FALLBACK_MAX_MARKS * PERF_GOOD:
             return "Good"
-        elif total_marks >= 50:
+        elif total_marks >= FALLBACK_MAX_MARKS * PERF_SATISFACTORY:
             return "Satisfactory"
         else:
             return "Needs Improvement"
@@ -638,7 +672,7 @@ def generate_ml_recommendations(student: dict, course_id: str) -> List[str]:
         assessments = df_courses['Assessments'].values
         strategies = df_courses[strategies_col].values
         max_marks_vals = df_courses[max_marks_col].values
-        threshold_pct = 0.60
+        threshold_pct = RECO_THRESHOLD
 
         for idx, assessment in enumerate(assessments):
             if pd.isna(assessment):
@@ -1763,8 +1797,8 @@ async def get_student_recommendation(
                 stu_marks[assessment_name] = round(converted_mark, 2)
                 total_converted += converted_mark
                 
-                # Check if below 60% threshold
-                threshold = 0.60 * converted_max
+                # Check if below threshold
+                threshold = RECO_THRESHOLD * converted_max
                 if converted_mark < threshold:
                     # Add strategy if available
                     if i < len(strategies_list):
@@ -2356,7 +2390,7 @@ def compute_achievements(roll_no: str) -> dict:
           f"{high_count}/10 assessments ≥75%")
 
     # ── Category: Subject Mastery ──────────────────────────────────────────
-    mastered = [s for s, avg in subject_avgs.items() if avg >= 0.80]
+    mastered = [s for s, avg in subject_avgs.items() if avg >= MASTERY_PCT]
     badge("master_1",     "📚", "Subject Pro",     "bronze",  "Mastery",
           "Achieve ≥80% average in any subject",
           len(mastered) >= 1, 100 if mastered else 0, 40,
@@ -2405,8 +2439,8 @@ def compute_achievements(roll_no: str) -> dict:
 
     # ── Earned badge list (for quick access) ─────────────────────────────
     earned = [b for b in all_badges if b["unlocked"]]
-    level = min(20, max(1, xp // 50 + 1))
-    next_level_xp = level * 50
+    level = min(MAX_LEVEL, max(1, xp // XP_PER_LEVEL + 1))
+    next_level_xp = level * XP_PER_LEVEL
 
     return {
         "xp": xp,
@@ -2546,11 +2580,11 @@ def wellness_check(data: WellnessInput):
     except Exception:
         pass
 
-    if score >= 60:
+    if score >= BURNOUT_HIGH_THRESHOLD:
         level = "HIGH"
         message = "⚠️ High burnout risk detected. Please speak to a counselor immediately and reduce workload."
         color = "#ef4444"
-    elif score >= 35:
+    elif score >= BURNOUT_MODERATE_THRESHOLD:
         level = "MODERATE"
         message = "⚡ Moderate burnout risk. Take preventive action this week before it escalates."
         color = "#f59e0b"
@@ -2566,7 +2600,7 @@ def wellness_check(data: WellnessInput):
         "color": color,
         "risk_factors": risks,
         "action_tips": tips,
-        "counselor_recommended": score >= 60
+        "counselor_recommended": score >= BURNOUT_HIGH_THRESHOLD
     }
 
 
@@ -2750,16 +2784,16 @@ def find_study_buddies(roll_no: str):
             return {"buddies": [], "message": "Insufficient data for peer matching", "your_weak_subjects": []}
 
         # --- categorise MY performance per course ---------------------
-        my_weak: List[str] = []    # courses where I score < 60%
-        my_strong: List[str] = []  # courses where I score >= 70%
+        my_weak: List[str] = []    # courses where I score < BUDDY_WEAK_THRESHOLD
+        my_strong: List[str] = []  # courses where I score >= BUDDY_STRONG_THRESHOLD
 
         for course_id, scores in course_data.items():
             my_pct = scores.get(target_roll)
             if my_pct is None:
                 continue
-            if my_pct < 0.60:
+            if my_pct < BUDDY_WEAK_THRESHOLD:
                 my_weak.append(course_id)
-            elif my_pct >= 0.70:
+            elif my_pct >= BUDDY_STRONG_THRESHOLD:
                 my_strong.append(course_id)
 
         # --- collect ALL peer rolls ------------------------------------
@@ -2775,14 +2809,14 @@ def find_study_buddies(roll_no: str):
             can_help_me: List[str] = []
             for course_id in my_weak:
                 peer_pct = course_data[course_id].get(peer_roll)
-                if peer_pct is not None and peer_pct >= 0.70:
+                if peer_pct is not None and peer_pct >= BUDDY_STRONG_THRESHOLD:
                     can_help_me.append(course_id)
 
             # Courses where I am strong and peer is weak → I can help them
             i_can_help: List[str] = []
             for course_id in my_strong:
                 peer_pct = course_data[course_id].get(peer_roll)
-                if peer_pct is not None and peer_pct < 0.60:
+                if peer_pct is not None and peer_pct < BUDDY_WEAK_THRESHOLD:
                     i_can_help.append(course_id)
 
             if not can_help_me and not i_can_help:
@@ -2883,19 +2917,19 @@ def forecast_performance(roll_no: str):
 
         trend = "improving" if slope > 1.0 else ("declining" if slope < -1.0 else "stable")
 
-        if predicted >= 80:
+        if predicted >= FORECAST_A_THRESHOLD:
             grade, message, actions = (
                 "A",
                 "Excellent trajectory! You're on track for distinction.",
                 ["Maintain current study habits", "Help peers to solidify your own understanding", "Target 90%+ by revising weak topics"]
             )
-        elif predicted >= 65:
+        elif predicted >= FORECAST_B_THRESHOLD:
             grade, message, actions = (
                 "B",
                 "Good progress! A focused effort can push you to A grade.",
                 ["Spend extra 30 mins daily on your weakest subject", "Redo all low-scoring assessments", "Attempt 2 past papers per subject this week"]
             )
-        elif predicted >= 50:
+        elif predicted >= FORECAST_C_THRESHOLD:
             grade, message, actions = (
                 "C",
                 "You're passing but there's clear room to improve.",
@@ -3061,4 +3095,4 @@ def get_resources(roll_no: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host=APP_HOST, port=APP_PORT)
