@@ -29,6 +29,8 @@ load_dotenv()
 
 # ── Roll number encryption (stable key derived from secret) ──────────────────
 _rn_secret = os.getenv("ROLL_ENCRYPT_SECRET", "dropin-rollno-key-2026")
+if _rn_secret == "dropin-rollno-key-2026":
+    print("[WARNING] ROLL_ENCRYPT_SECRET is using an insecure default. Set it in your environment.")
 _rn_fernet = Fernet(
     base64.urlsafe_b64encode(
         hashlib.pbkdf2_hmac('sha256', _rn_secret.encode(), b'dropin_v1', 100000)
@@ -104,8 +106,8 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     import traceback
-    print(f"Unhandled exception: {traceback.format_exc()}")
-    return JSONResponse(status_code=500, content={"error": str(exc), "type": type(exc).__name__})
+    print(f"[UNHANDLED] {traceback.format_exc()}")
+    return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 # CORS - allowed origins loaded from env var ALLOWED_ORIGINS (comma-separated) or fallback defaults
 _env_origins = os.getenv("ALLOWED_ORIGINS", "")
@@ -135,10 +137,14 @@ COURSES_FILE = os.path.join(BASE_DIR, "Courses.xlsx")
 
 # API Key Configuration
 VALID_API_KEYS = [k for k in [os.getenv("API_KEY")] if k]
+if not VALID_API_KEYS:
+    print("[WARNING] API_KEY env var not set — /api/recommendations/student will reject all requests.")
 
 # ==================== JWT / Password Security ====================
 DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "demo123")
 JWT_SECRET = os.getenv("JWT_SECRET", "dropin-jwt-secret-2026-change-in-prod")
+if JWT_SECRET == "dropin-jwt-secret-2026-change-in-prod":
+    print("[WARNING] JWT_SECRET is using an insecure default. Set it in your environment.")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 TOKEN_EXPIRE_HOURS = int(os.getenv("TOKEN_EXPIRE_HOURS", "8"))
 
@@ -336,11 +342,11 @@ def get_student_results(roll_no: str, class_name: str = None) -> dict:
         for sheet_name in sheet_names:
             df = pd.read_excel(STUDENTS_FILE, sheet_name=sheet_name)
             
-            # Find student by roll/ID number
+            # Find student by roll/ID number — exact match to prevent IDOR via partial match
             student_data = None
             for col in df.columns:
                 if any(term in col.lower() for term in ['roll', 'id', 'student id', 'student_id']):
-                    mask = df[col].astype(str).str.contains(str(roll_no), case=False, na=False)
+                    mask = df[col].astype(str).str.strip() == str(roll_no).strip()
                     matching = df[mask]
                     if not matching.empty:
                         student_data = matching.iloc[0].to_dict()
@@ -832,11 +838,12 @@ async def get_student_classes(request: Request):
         classes = get_all_classes()
         return {"success": True, "classes": classes}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/student/{roll_no}/results")
 @limiter.limit("20/minute")
-async def get_student_results_endpoint(request: Request, roll_no: str, class_name: Optional[str] = None):
+async def get_student_results_endpoint(request: Request, roll_no: str, class_name: Optional[str] = None, _: str = Depends(verify_any_token)):
     """Get student results and recommendations for relevant courses"""
     try:
         results = get_student_results(roll_no, class_name)
@@ -855,12 +862,13 @@ async def get_student_results_endpoint(request: Request, roll_no: str, class_nam
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/students/results")
 @limiter.limit("5/minute")
-async def get_all_students_results(request: Request):
+async def get_all_students_results(request: Request, _: str = Depends(verify_teacher_token)):
     """Get results and recommendations for all students across all courses"""
     try:
         if not os.path.exists(STUDENTS_FILE):
@@ -888,11 +896,12 @@ async def get_all_students_results(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/student/{roll_no}/recommendations")
 @limiter.limit("20/minute")
-async def get_student_recommendations(request: Request, roll_no: str, class_name: Optional[str] = None):
+async def get_student_recommendations(request: Request, roll_no: str, class_name: Optional[str] = None, _: str = Depends(verify_any_token)):
     """Get recommendations for student across relevant courses"""
     try:
         results = get_student_results(roll_no, class_name)
@@ -911,12 +920,13 @@ async def get_student_recommendations(request: Request, roll_no: str, class_name
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/student/{roll_no}/profile")
 @limiter.limit("20/minute")
-async def get_student_profile(request: Request, roll_no: str):
+async def get_student_profile(request: Request, roll_no: str, _: str = Depends(verify_any_token)):
     """Get student profile information"""
     try:
         validation = validate_student(roll_no)
@@ -935,11 +945,12 @@ async def get_student_profile(request: Request, roll_no: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/courses")
 @limiter.limit("30/minute")
-async def get_available_courses(request: Request):
+async def get_available_courses(request: Request, _: str = Depends(verify_any_token)):
     """Get all available courses from Courses.xlsx"""
     try:
         if not os.path.exists(COURSES_FILE):
@@ -972,11 +983,12 @@ async def get_available_courses(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/courses/{course_id}/strategies")
 @limiter.limit("30/minute")
-async def get_course_strategies_endpoint(request: Request, course_id: str):
+async def get_course_strategies_endpoint(request: Request, course_id: str, _: str = Depends(verify_any_token)):
     """Get strategies and assessment mappings for a specific course"""
     try:
         if not os.path.exists(COURSES_FILE):
@@ -1007,11 +1019,12 @@ async def get_course_strategies_endpoint(request: Request, course_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/api/train-models")
 @limiter.limit("2/minute")
-async def train_all_models(request: Request):
+async def train_all_models(request: Request, _: str = Depends(verify_teacher_token)):
     """Train ML models for all courses using mlcode functions"""
     try:
         if not mlcode:
@@ -1059,11 +1072,12 @@ async def train_all_models(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error training models: {str(e)}")
+        print(f"[ERROR] train_all_models: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/api/train-models/{course_id}")
 @limiter.limit("2/minute")
-async def train_single_model(request: Request, course_id: str):
+async def train_single_model(request: Request, course_id: str, _: str = Depends(verify_teacher_token)):
     """Train ML model for a specific course"""
     try:
         if not mlcode:
@@ -1098,7 +1112,8 @@ async def train_single_model(request: Request, course_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error training model: {str(e)}")
+        print(f"[ERROR] train_single_model: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/models/status")
 @limiter.limit("30/minute")
@@ -1128,7 +1143,8 @@ async def get_models_status(request: Request):
         }
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/health")
 @limiter.limit("60/minute")
@@ -1192,7 +1208,8 @@ async def get_available_classes(request: Request):
         classes = get_all_classes()
         return {"success": True, "classes": classes}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/teacher/class/{class_name}/students")
 @limiter.limit("20/minute")
@@ -1273,7 +1290,8 @@ async def get_class_students(request: Request, class_name: str, _: str = Depends
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.put("/api/teacher/student/{roll_no}/marks")
 @limiter.limit("15/minute")
@@ -1322,7 +1340,8 @@ async def update_student_marks(req: Request, roll_no: str, request: UpdateMarksR
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/api/teacher/student/add")
 @limiter.limit("10/minute")
@@ -1384,7 +1403,8 @@ async def add_new_student(req: Request, request: AddStudentRequest, _: str = Dep
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.delete("/api/teacher/student/{roll_no}")
 @limiter.limit("10/minute")
@@ -1426,7 +1446,8 @@ async def delete_student(request: Request, roll_no: str, class_name: str, _: str
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 class UpdateCurriculumRequest(BaseModel):
@@ -1436,7 +1457,7 @@ class UpdateCurriculumRequest(BaseModel):
 
 @app.put("/api/curriculum/{sheet_id}")
 @limiter.limit("15/minute")
-async def update_curriculum(req: Request, sheet_id: str, request: UpdateCurriculumRequest, _: str = Depends(verify_any_token)):
+async def update_curriculum(req: Request, sheet_id: str, request: UpdateCurriculumRequest, _: str = Depends(verify_teacher_token)):
     """Update the curriculum text for a specific assessment in a Courses sheet"""
     try:
         if not os.path.exists(COURSES_FILE):
@@ -1471,7 +1492,8 @@ async def update_curriculum(req: Request, sheet_id: str, request: UpdateCurricul
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 class UpdateAssessmentsRequest(BaseModel):
@@ -1535,7 +1557,8 @@ async def update_assessments_completed(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ==================== Peer Rank / Analytics Endpoints ====================
@@ -1594,7 +1617,8 @@ async def get_student_rank(request: Request, roll_no: str, class_name: Optional[
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/teacher/class/{class_name}/analytics")
@@ -1649,7 +1673,8 @@ async def get_class_analytics(request: Request, class_name: str, _: str = Depend
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 import io
@@ -1673,6 +1698,8 @@ async def import_students_csv(
             raise HTTPException(status_code=400, detail="File must be a .csv")
 
         content = await file.read()
+        if len(content) > 1_000_000:
+            raise HTTPException(status_code=400, detail="CSV file too large (max 1 MB)")
         decoded = content.decode('utf-8-sig')
         reader = csv_module.DictReader(io.StringIO(decoded))
         rows = list(reader)
@@ -1702,7 +1729,14 @@ async def import_students_csv(
             if roll_col and (df_target[roll_col].astype(str).str.strip() == rn).any():
                 skipped.append(rn)
                 continue
-            marks = {k: float(v or 0) for k, v in row.items() if k != 'roll_no'}
+            marks: Dict[str, float] = {}
+            for k, v in row.items():
+                if k == 'roll_no':
+                    continue
+                try:
+                    marks[k] = max(0.0, min(1000.0, float(v or 0)))
+                except (ValueError, TypeError):
+                    pass
             new_row: Dict[str, object] = {}
             for col in df_target.columns:
                 if 'roll' in col.lower() or ('student' in col.lower() and 'id' in col.lower()):
@@ -1723,7 +1757,8 @@ async def import_students_csv(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 
@@ -1837,9 +1872,10 @@ async def get_student_recommendation(
     except HTTPException:
         raise
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
+        raise HTTPException(status_code=404, detail="Requested resource not found")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting student recommendations: {str(e)}")
+        print(f"[ERROR] get_student_recommendation: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # Progress tracking for students
@@ -2103,7 +2139,7 @@ ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", Fernet.generate_key().decode())
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(req: Request, request: ChatRequest):
+async def chat(req: Request, request: ChatRequest, _: str = Depends(verify_any_token)):
     """
     AI Academic Counselor endpoint
     Provides personalized academic help, study strategies, and emotional support
@@ -2119,8 +2155,10 @@ async def chat(req: Request, request: ChatRequest):
                 encouragement="Every conversation is a step toward your goals!"
             )
         
-        # Track session for progress awareness
+        # Track session for progress awareness — evict oldest entry to cap memory usage
         if student_id not in student_chat_sessions:
+            if len(student_chat_sessions) >= 1000:
+                student_chat_sessions.pop(next(iter(student_chat_sessions)))
             student_chat_sessions[student_id] = {"message_count": 0, "topics_discussed": []}
         student_chat_sessions[student_id]["message_count"] += 1
         
@@ -2503,7 +2541,8 @@ def get_leaderboard(class_name: Optional[str] = None, _: str = Depends(verify_an
             })
         return {"leaderboard": board}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -2519,7 +2558,7 @@ class WellnessInput(BaseModel):
     energy_level: int = Field(..., ge=1, le=10)    # 1 = exhausted, 10 = full energy
 
 @app.post("/api/student/wellness-check")
-def wellness_check(data: WellnessInput):
+def wellness_check(data: WellnessInput, _: str = Depends(verify_any_token)):
     score = 0
     risks = []
     tips = []
@@ -2609,7 +2648,7 @@ def wellness_check(data: WellnessInput):
 # ============================================================
 
 @app.get("/api/student/{roll_no}/study-buddies")
-def find_study_buddies(roll_no: str):
+def find_study_buddies(roll_no: str, _: str = Depends(verify_any_token)):
     """
     Pair students complementarily:
     - Find courses where the requesting student scores < 60%
@@ -2826,9 +2865,9 @@ def find_study_buddies(roll_no: str):
             compat = min(100, len(can_help_me) * 35 + len(i_can_help) * 25 + 15)
 
             peer_achieve = compute_achievements(peer_roll)
-            # Show full roll number - user should be able to see it
+            # Mask roll number to prevent enumeration of other students' IDs
             stored_name = name_map.get(peer_roll, "")
-            peer_display = stored_name if stored_name and stored_name != "Peer" else f"Student {peer_roll}"
+            peer_display = stored_name if stored_name and stored_name != "Peer" else f"Student {mask_roll_no(peer_roll)}"
 
             # Build readable course labels (strip leading "19" prefix for brevity)
             def fmt_course(c):
@@ -2838,7 +2877,7 @@ def find_study_buddies(roll_no: str):
             mutual_labels = [fmt_course(c) for c in i_can_help[:2]]
 
             buddies.append({
-                "roll_no": peer_roll,
+                "roll_no": mask_roll_no(peer_roll),
                 "name": peer_display,
                 "strong_in": strong_labels,
                 "can_help_you_with": strong_labels,
@@ -2872,7 +2911,8 @@ def find_study_buddies(roll_no: str):
     except Exception as e:
         import traceback
         print(f"Peer matching error: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -2880,7 +2920,7 @@ def find_study_buddies(roll_no: str):
 # ============================================================
 
 @app.get("/api/student/{roll_no}/forecast")
-def forecast_performance(roll_no: str):
+def forecast_performance(roll_no: str, _: str = Depends(verify_any_token)):
     try:
         from sklearn.linear_model import LinearRegression
 
@@ -2952,7 +2992,8 @@ def forecast_performance(roll_no: str):
             "scores_history": all_scores[-8:]
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -2960,7 +3001,7 @@ def forecast_performance(roll_no: str):
 # ============================================================
 
 @app.get("/api/student/{roll_no}/career-insights")
-def career_insights(roll_no: str):
+def career_insights(roll_no: str, _: str = Depends(verify_any_token)):
     try:
         from urllib.parse import quote_plus
 
@@ -3048,7 +3089,8 @@ def career_insights(roll_no: str):
             ]
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================
@@ -3056,7 +3098,7 @@ def career_insights(roll_no: str):
 # ============================================================
 
 @app.get("/api/student/{roll_no}/resources")
-def get_resources(roll_no: str):
+def get_resources(roll_no: str, _: str = Depends(verify_any_token)):
     try:
         df = pd.read_excel(STUDENTS_FILE)
         df.columns = [c.strip() for c in df.columns]
@@ -3090,7 +3132,8 @@ def get_resources(roll_no: str):
             "personalised_tip": f"Focusing on your weak area: {', '.join(weak_subjects[:2])}" if weak_subjects else "You're performing well! Explore advanced topics to stay ahead.",
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 if __name__ == "__main__":
